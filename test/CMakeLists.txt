@@ -8,12 +8,12 @@ include_directories (${TEST_SOURCE_DIR}/src
 add_definitions (-DBOOST_TEST_DYN_LINK)
 
 add_executable (Wrapper wrapper.cpp)
-add_executable (Insertion insertion.cpp)
-add_executable (Deletion deletion.cpp)
-add_executable (Existence existence.cpp)
+add_executable (Set set.cpp)
+add_executable (Map map.cpp)
+add_executable (StableSet stable_set.cpp)
 
 
 target_link_libraries(Wrapper   boost_unit_test_framework ptrie)
-target_link_libraries(Insertion boost_unit_test_framework ptrie)
-target_link_libraries(Existence boost_unit_test_framework ptrie)
-target_link_libraries(Deletion  boost_unit_test_framework ptrie)
+target_link_libraries(Set boost_unit_test_framework ptrie)
+target_link_libraries(StableSet boost_unit_test_framework ptrie)
+target_link_libraries(Map  boost_unit_test_framework ptrie)

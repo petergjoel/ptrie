@@ -19,8 +19,23 @@
 #include <boost/test/unit_test.hpp>
 
 #include <ptrie.h>
+using namespace ptrie;
 
-BOOST_AUTO_TEST_CASE(PassTest)
+BOOST_AUTO_TEST_CASE(SizeTInsert)
 {
-    BOOST_CHECK_EQUAL(true, true);
+    set<> set;
+
+    for(size_t i = 0; i < 1000000; ++i)
+    {
+        auto exists = set.exists((uchar *) &i, sizeof(size_t));
+        BOOST_CHECK_EQUAL(exists.first, false);
+        auto inserted = set.insert((uchar*)&i, sizeof(size_t));
+        BOOST_CHECK_EQUAL(inserted.first, true);
+    }
+
+    for(size_t i = 0; i < 1000000; ++i) {
+        auto exists = set.exists((uchar *) &i, sizeof(size_t));
+        BOOST_CHECK_EQUAL(exists.first, true);
+    }
 }
+
