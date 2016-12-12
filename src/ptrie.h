@@ -147,10 +147,10 @@ namespace ptrie {
 
         fwdnode_t* new_fwd();
 
-        node_t* fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte);
+        base_t* fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte);
         bool bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte);
 
-        bool best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, node_t** node, uint& byte, uint& b_index);
+        bool best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index);
 
         void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
@@ -200,21 +200,12 @@ namespace ptrie {
 
         _root = new_fwd();
         _root->_parent = NULL;
-        _root->_type = 0;
+        _root->_type = 255;
         _root->_path = 0;
 
-        node_t* low = new_node();
-        node_t* high = new_node();
-
-        low->_count = high->_count = 0;
-        low->_data = high->_data = NULL;
-        low->_type = high->_type = 1;
-        low->_path = 0;
-        high->_path = binarywrapper_t::_masks[0];
-
         size_t i = 0;
-        for (; i < 128; ++i) (*_root)[i] = low;
-        for (; i < 256; ++i) (*_root)[i] = high;
+        for (; i < 128; ++i) (*_root)[i] = _root;
+        for (; i < 256; ++i) (*_root)[i] = _root;
     }
 
     template<PTRIETPL>
@@ -236,7 +227,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    typename set<PTRIEDEF>::node_t*
+    typename set<PTRIEDEF>::base_t*
     set<PTRIEDEF>::fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte) {
         fwdnode_t* t_pos = *tree_pos;
 
@@ -251,7 +242,11 @@ namespace ptrie {
             else next = (*t_pos)[sc[1 - byte]];
 
             assert(next != NULL);
-            if (next->_type != 0) {
+            if(next == t_pos)
+            {
+              return t_pos;
+            } else
+            if (next->_type != 255) {
                 return (node_t*) next;
             } else {
                 t_pos = static_cast<fwdnode_t*> (next);
@@ -369,12 +364,17 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<PTRIEDEF>::best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, node_t** node,
+    bool set<PTRIEDEF>::best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node,
             uint& byte, uint& b_index) {
         // run through tree as long as there are branches covering some of 
         // the encoding
         *node = fast_forward(encoding, tree_pos, byte);
-        return bucket_search(encoding, *node, b_index, byte);
+        if((size_t)*node != (size_t)*tree_pos) {
+            return bucket_search(encoding, (node_t*)*node, b_index, byte);
+        } else
+        {
+            return false;
+        }
     }
 
 
@@ -388,7 +388,7 @@ namespace ptrie {
         //        std::cerr << "SplitFWD " << (locked ? locked : node) << " OP : " << jumppar << " NP : " << fwd_n  << " LOW : " << low_n << std::endl;
 
         fwd_n->_parent = jumppar;
-        fwd_n->_type = 0;
+        fwd_n->_type = 255;
         fwd_n->_path = node->_path;
 
         low_n->_path = 0;
@@ -643,7 +643,7 @@ namespace ptrie {
         // then we need to find out which bit of the first 8 we are
         // splitting on in the "remainder"
         const uint r_pos = node->_type;
-        assert(r_pos != 0 && r_pos < 8);
+        assert(r_pos < 8);
 
         // Copy over the data to the new buckets
 
@@ -762,15 +762,17 @@ namespace ptrie {
         uint b_index = 0;
 
         fwdnode_t* fwd = _root;
-        node_t* node = NULL;
+        base_t* base = NULL;
         uint byte = 0;
 
         b_index = 0;
-        bool res = best_match(encoding, &fwd, &node, byte, b_index);
-
+        bool res = best_match(encoding, &fwd, &base, byte, b_index);
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
-        if (_entries != NULL && res) {
-            ret.second = node->_data->entries(node->_count, true)[b_index];
+        if((size_t)fwd != (size_t)base) {
+            node_t* node = (node_t*)base;
+            if (_entries != NULL && res) {
+                ret.second = node->_data->entries(node->_count, true)[b_index];
+            }
         }
         return ret;
     }
@@ -789,15 +791,31 @@ namespace ptrie {
 
         fwdnode_t* fwd = _root;
         node_t* node = NULL;
+        base_t* base = NULL;
         uint byte = 0;
 
-        bool res = best_match(e2, &fwd, &node, byte, b_index);
+        bool res = best_match(e2, &fwd, &base, byte, b_index);
         if (res) { // We are not inserting duplicates, semantics of PTrie is a set.
             returntype_t ret(false, 0);
             if (hasent) {
+                node = (node_t*)base;
                 ret = returntype_t(false, node->_data->entries(node->_count, true)[b_index]);
             }
             return ret;
+        }
+
+        if((size_t)base == (size_t)fwd)
+        {
+            node = new_node();
+            node->_count = 0;
+            node->_data = NULL;
+            node->_type = 0;
+            node->_path = 0;
+            assert(node);
+            for (size_t i = 0; i < 256; ++i) (*fwd)[i] = node;
+        } else
+        {
+            node = (node_t*)base;
         }
 
 
