@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 // Created by Peter G. Jensen on 12/9/16.
-#define BOOST_TEST_MODULE PTrieExistence
+#define BOOST_TEST_MODULE PTrieStableSet
 #include <boost/test/unit_test.hpp>
 #include <ptrie_stable.h>
 #include <vector>
