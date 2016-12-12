@@ -15,12 +15,62 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 // Created by Peter G. Jensen on 12/9/16.
-#define BOOST_TEST_MODULE PTrieDeletion
+#define BOOST_TEST_MODULE PTrieMap
 #include <boost/test/unit_test.hpp>
 
-#include <ptrie.h>
+#include <ptrie_map.h>
 
-BOOST_AUTO_TEST_CASE(PassTest)
+#include <vector>
+#include "utils.h"
+
+using namespace ptrie;
+using namespace std;
+
+BOOST_AUTO_TEST_CASE(PseudoRand1)
 {
-    BOOST_CHECK_EQUAL(true, true);
+    for(size_t seed = 314; seed < (314+10); ++seed) {
+        ptrie::map<size_t> set;
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.insert(data);
+            BOOST_CHECK(res.first);
+            set.get_data(res.second) = i;
+            data.release();
+        }
+
+        // let us unwrap everything and check that it is there!
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.exists(data);
+            BOOST_CHECK(res.first);
+            BOOST_CHECK_EQUAL(set.get_data(res.second), i);
+            data.release();
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
+{
+    for(size_t seed = 512; seed < (512+10); ++seed) {
+        ptrie::map<size_t,1,2> set;
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.insert(data);
+            BOOST_CHECK(res.first);
+            set.get_data(res.second) = i;
+            data.release();
+        }
+
+        // let us unwrap everything and check that it is there!
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.exists(data);
+            BOOST_CHECK(res.first);
+            BOOST_CHECK_EQUAL(set.get_data(res.second), i);
+            data.release();
+        }
+    }
 }
