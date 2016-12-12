@@ -23,10 +23,10 @@
 
 using namespace ptrie;
 
-BOOST_AUTO_TEST_CASE(PassTest)
+/*BOOST_AUTO_TEST_CASE(PassTest)
 {
     BOOST_CHECK_EQUAL(true, true);
-}
+}*/
 
 BOOST_AUTO_TEST_CASE(SimpleConstructorTest)
 {
@@ -46,7 +46,3 @@ BOOST_AUTO_TEST_CASE(SimpleConstructorTest)
 
 }
 
-BOOST_AUTO_TEST_CASE(PassTest)
-{
-    BOOST_CHECK_EQUAL(true, true);
-}
