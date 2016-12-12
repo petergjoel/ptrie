@@ -139,18 +139,18 @@ namespace ptrie {
 
         fwdnode_t* _root;
     protected:
-        node_t* new_node(size_t thread);
+        node_t* new_node();
 
-        fwdnode_t* new_fwd(size_t thread);
+        fwdnode_t* new_fwd();
 
         node_t* fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte);
         bool bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte);
 
         bool best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, node_t** node, uint& byte, uint& b_index);
 
-        void split_node(node_t* node, size_t thread, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
+        void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
-        void split_fwd(node_t* node, size_t thread, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
+        void split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
         static inline uint16_t bytes(const uint16_t d) {
             if (d >= HEAPBOUND) return sizeof (uchar*);
@@ -161,9 +161,9 @@ namespace ptrie {
         set();
         ~set();
 
-        returntype_t insert(binarywrapper_t wrapper, size_t thread = 0);
-        returntype_t insert(const uchar* data, uint16_t length, size_t thread = 0);
-        returntype_t exists(binarywrapper_t wrapper, size_t thread = 0);
+        returntype_t insert(binarywrapper_t wrapper);
+        returntype_t insert(const uchar* data, uint16_t length);
+        returntype_t exists(binarywrapper_t wrapper);
         returntype_t exists(const uchar* data, uint16_t length);
     };
 
@@ -194,13 +194,13 @@ namespace ptrie {
         _nodes = new linked_bucket_t<node_t, ALLOCSIZE>(1);
         _fwd = new linked_bucket_t<fwdnode_t, FWDALLOC>(1);
 
-        _root = new_fwd(0);
+        _root = new_fwd();
         _root->_parent = NULL;
         _root->_type = 0;
         _root->_path = 0;
 
-        node_t* low = new_node(0);
-        node_t* high = new_node(0);
+        node_t* low = new_node();
+        node_t* high = new_node();
 
         low->_count = high->_count = 0;
         low->_data = high->_data = NULL;
@@ -215,8 +215,8 @@ namespace ptrie {
 
     template<PTRIETPL>
     typename set<PTRIEDEF>::node_t*
-    set<PTRIEDEF>::new_node(size_t thread) {
-        size_t n = _nodes->next(thread);
+    set<PTRIEDEF>::new_node() {
+        size_t n = _nodes->next(0);
         node_t* no = &_nodes->operator[](n);
         //        std::cout << "NEW NODE >> " << no << std::endl;
         return no;
@@ -224,8 +224,8 @@ namespace ptrie {
 
     template<PTRIETPL>
     typename set<PTRIEDEF>::fwdnode_t*
-    set<PTRIEDEF>::new_fwd(size_t thread) {
-        size_t n = _fwd->next(thread);
+    set<PTRIEDEF>::new_fwd() {
+        size_t n = _fwd->next(0);
         fwdnode_t* node = &_fwd->operator[](n);
         node->_index = n;
         return node;
@@ -375,11 +375,11 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<PTRIEDEF>::split_fwd(node_t* node, size_t thread, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<PTRIEDEF>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         const bool hasent = _entries != NULL;
-        node_t* low_n = new_node(thread);
-        fwdnode_t* fwd_n = new_fwd(thread);
+        node_t* low_n = new_node();
+        fwdnode_t* fwd_n = new_fwd();
 
         //        std::cerr << "SplitFWD " << (locked ? locked : node) << " OP : " << jumppar << " NP : " << fwd_n  << " LOW : " << low_n << std::endl;
 
@@ -580,7 +580,7 @@ namespace ptrie {
             //            std::cout << "SPLIT ALL HIGH" << std::endl;
             low_n->_data = NULL;
 
-            split_node(node, thread, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
+            split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
             if (hasent)
@@ -589,7 +589,7 @@ namespace ptrie {
             free(bucket);
             //            std::cout << "SPLIT ALL LOW" << std::endl;
             node->_data = NULL;
-            split_node(low_n, thread, fwd_n, NULL, bsize > 0 ? bsize - 1 : 0, byte + 1);
+            split_node(low_n, fwd_n, NULL, bsize > 0 ? bsize - 1 : 0, byte + 1);
         } else {
             if (hasent) {
                 // We are stopping splitting here, so correct entries if needed
@@ -608,13 +608,13 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<PTRIEDEF>::split_node(node_t* node, size_t thread, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<PTRIEDEF>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         assert(bsize != std::numeric_limits<size_t>::max());
         if (node->_type == 8) // new fwd node!
         {
             //stuff
-            split_fwd(node, thread, jumppar, locked, bsize, byte);
+            split_fwd(node, jumppar, locked, bsize, byte);
             return;
         }
 
@@ -623,7 +623,7 @@ namespace ptrie {
 #endif
         //        assert(bucketsize <= 255);
 
-        node_t* h_node = new_node(thread);
+        node_t* h_node = new_node();
 
 
         //        std::cerr << "Split " << (locked ? locked : node) << " high : " << h_node << std::endl;
@@ -711,13 +711,13 @@ namespace ptrie {
             //            std::cout << "ALL HIGH" << std::endl;
             node->_data = NULL;
             h_node->_data = old;
-            split_node(h_node, thread, jumppar, NULL, bsize, byte);
+            split_node(h_node, jumppar, NULL, bsize, byte);
         } else if (h_node->_count == 0) // only low node has data
         {
             //            std::cout << "ALL LOW" << std::endl;
             h_node->_data = NULL;
             node->_data = old;
-            split_node(node, thread, jumppar, locked, bsize, byte);
+            split_node(node, jumppar, locked, bsize, byte);
         } else {
             //            std::cout << "Moving LOW " << node->_count << " TO " << node << std::endl;
             //            std::cout << "Moving HIGH " << h_node->_count << " TO " << h_node << std::endl;
@@ -773,7 +773,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<PTRIEDEF>::insert(const uchar* data, uint16_t length, size_t thread) {
+    set<PTRIEDEF>::insert(const uchar* data, uint16_t length) {
         binarywrapper_t e2((uchar*) data, length * 8);
         const bool hasent = _entries != NULL;
         //        binarywrapper_t encoding(length*8+16);
@@ -846,7 +846,7 @@ namespace ptrie {
             memcpy(&(nbucket->entries(nbucketcount, true)[b_index + 1]), &(node->_data->entries(node->_count, true)[b_index]),
                     (node->_count - b_index) * sizeof (I));
 
-            entry = nbucket->entries(nbucketcount, true)[b_index] = _entries->next(thread);
+            entry = nbucket->entries(nbucketcount, true)[b_index] = _entries->next(0);
             entry_t& ent = _entries->operator[](entry);
             if(sizeof(I) == sizeof(size_t)) ent.node = (size_t)fwd;
             else ent.node = fwd->_index;
@@ -909,7 +909,7 @@ namespace ptrie {
             // copy over data to we can work while readers finish
             // we have to wait for readers to finish for 
             // tree extension
-            split_node(node, thread, fwd, node, nenc.size(), byte);
+            split_node(node, fwd, node, nenc.size(), byte);
         }
 
 #ifndef NDEBUG        
@@ -931,14 +931,14 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<PTRIEDEF>::insert(binarywrapper_t wrapper, size_t thread) {
-        return insert(wrapper.raw(), wrapper.size(), thread);
+    set<PTRIEDEF>::insert(binarywrapper_t wrapper) {
+        return insert(wrapper.raw(), wrapper.size());
     }
 
     template<PTRIETPL>
     returntype_t
-    set<PTRIEDEF>::exists(binarywrapper_t wrapper, size_t thread) {
-        return exists(wrapper.raw(), wrapper.size(), thread);
+    set<PTRIEDEF>::exists(binarywrapper_t wrapper) {
+        return exists(wrapper.raw(), wrapper.size());
     }
 
 }
