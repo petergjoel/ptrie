@@ -243,6 +243,7 @@ namespace ptrie
             if(_nbytes > __BW_BSIZE__)
                 dealloc(_blob);
             _blob = NULL;
+            _nbytes = 0;
         }
                 
         /**
