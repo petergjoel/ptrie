@@ -19,8 +19,32 @@
 #define BOOST_TEST_MODULE BinaryWrapper
 
 #include <boost/test/unit_test.hpp>
-
 #include <binarywrapper.h>
+
+using namespace ptrie;
+
+BOOST_AUTO_TEST_CASE(PassTest)
+{
+    BOOST_CHECK_EQUAL(true, true);
+}
+
+BOOST_AUTO_TEST_CASE(SimpleConstructorTest)
+{
+    binarywrapper_t basic;
+    BOOST_CHECK_EQUAL(basic.size(), 0);
+    basic.release();
+
+    size_t b = 0;
+    for(size_t i = 0; i < 128; ++i)
+    {
+        if((i % 8) == 1) ++b;
+        binarywrapper_t sized(i);
+        BOOST_CHECK_EQUAL(sized.size(), b);
+        sized.release();
+        BOOST_CHECK_EQUAL(sized.size(), 0);
+    }
+
+}
 
 BOOST_AUTO_TEST_CASE(PassTest)
 {
