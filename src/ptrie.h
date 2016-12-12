@@ -73,6 +73,9 @@ namespace ptrie {
     class set {
         static_assert(HEAPBOUND * SPLITBOUND < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * SPLITBOUND should be less than 2^16");
+        static_assert(SPLITBOUND > 1,
+                "SPLITBOUND MUST BE LARGER THAN 1");
+
     protected:
         static constexpr const uint16_t RLOCK = 1;
         static constexpr const uint16_t WLOCK = 256;
