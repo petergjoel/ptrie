@@ -22,6 +22,7 @@
 int main(int argc, const char** argv)
 {
     std::cout << "HELLO WORLD" << std::endl;
-
+    ptrie::binarywrapper_t data;
+    std::cout << data << std::endl;
     return 0;
 }
