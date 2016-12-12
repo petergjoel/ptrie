@@ -40,7 +40,7 @@ namespace ptrie {
 #define pt set_stable<PTRIEDEF>
     public:
         using pt::set_stable;
-        T& getData(I index);
+        T& get_data(I index);
 
     };
 
@@ -52,7 +52,7 @@ namespace ptrie {
     size_t FWDALLOC,
     typename I>
     T&
-    map<T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, I>::getData(I index) {
+    map<T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent.data;
     }
