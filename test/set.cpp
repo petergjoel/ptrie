@@ -19,40 +19,14 @@
 #include <boost/test/unit_test.hpp>
 
 #include <ptrie.h>
-#include <stdlib.h>
+#include "utils.h"
 
 using namespace ptrie;
-
-
-void tryInsert(auto& trie, auto generator, size_t N)
-{
-    for(size_t i = 0; i < N; ++i)
-    {
-        binarywrapper_t data = generator(i);
-        auto exists = trie.exists(data.raw(), data.size());
-        BOOST_REQUIRE_MESSAGE(!exists.first,
-                              "FAILED ON INSERT " << i << " BIN " << data << " ");
-
-        auto inserted = trie.insert(data.raw(), data.size());
-        BOOST_REQUIRE_MESSAGE(inserted.first,
-                              "EXIST FAILED FOR " << i << " BIN " << data << " ");
-        data.release();
-    }
-
-    for(size_t i = 0; i < N; ++i) {
-        binarywrapper_t data = generator(i);
-        auto exists = trie.exists(data.raw(), data.size());
-        BOOST_REQUIRE_MESSAGE(exists.first,
-                              "POST EXIST CHECK FAILED FOR " << i << " BIN " << data << " ");
-        data.release();
-    }
-
-};
 
 BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
-    tryInsert(set,
+    try_insert(set,
               [](size_t i){
                   binarywrapper_t data;
                   return data;
@@ -63,7 +37,7 @@ BOOST_AUTO_TEST_CASE(EmptyTest)
 BOOST_AUTO_TEST_CASE(InsertByte)
 {
     set<> set;
-    tryInsert(set,
+    try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
                   data.raw()[0] = (uchar)i;
@@ -75,7 +49,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
     set<128,2> set;
-    tryInsert(set,
+    try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
                   data.raw()[0] = (uchar)i;
@@ -87,7 +61,7 @@ BOOST_AUTO_TEST_CASE(InsertByteSplit)
 BOOST_AUTO_TEST_CASE(HeapTest)
 {
     set<2> set;
-    tryInsert(set,
+    try_insert(set,
               [](size_t i){
                   binarywrapper_t data;
                   data.copy((uchar*)&i, sizeof(size_t));
@@ -99,7 +73,7 @@ BOOST_AUTO_TEST_CASE(HeapTest)
 BOOST_AUTO_TEST_CASE(InsertMill)
 {
     set<> set;
-    tryInsert(set,
+    try_insert(set,
               [](size_t i){
                   binarywrapper_t data;
                   data.copy((uchar*)&i, sizeof(size_t));
@@ -112,23 +86,9 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 {
     for(size_t seed = 0; seed < 10; ++ seed) {
         set<> set;
-        tryInsert(set,
+        try_insert(set,
                   [seed](size_t i) {
-                      srand(seed + i);
-                      // pick size between 0 and 256
-                      size_t size = sizeof(size_t) +
-                                    rand() % (256 - sizeof(size_t));
-
-                      binarywrapper_t data(size * 8);
-                      // fill in random data
-                      for (size_t j = 0; j < size; ++j) {
-                          data.raw()[j] = (uchar) rand();
-                      }
-                      // make sure everything is unique
-                      for (size_t j = 1; j <= sizeof(size_t); ++j) {
-                          data.raw()[size - j] = ((uchar *) &i)[j - 1];
-                      }
-                      return data;
+                      return rand_data(seed + i, 256);
                   },
                   1024 * 10);
     }
@@ -138,23 +98,9 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
 {
     for(size_t seed = 0; seed < 10; ++ seed) {
         set<> set;
-        tryInsert(set,
+        try_insert(set,
                   [seed](size_t i) {
-                      srand(seed + i);
-                      // pick size between 0 and 256
-                      size_t size = sizeof(size_t) +
-                                    rand() % (20 - sizeof(size_t));
-
-                      binarywrapper_t data(size * 8);
-                      // fill in random data
-                      for (size_t j = 0; j < size; ++j) {
-                          data.raw()[j] = (uchar) rand();
-                      }
-                      // make sure everything is unique
-                      for (size_t j = 1; j <= sizeof(size_t); ++j) {
-                          data.raw()[size - j] = ((uchar *) &i)[j - 1];
-                      }
-                      return data;
+                     return rand_data(seed + i, 16);
                   },
                   1024 * 10);
     }
