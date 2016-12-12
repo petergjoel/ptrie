@@ -17,10 +17,81 @@
 // Created by Peter G. Jensen on 12/9/16.
 #define BOOST_TEST_MODULE PTrieExistence
 #include <boost/test/unit_test.hpp>
+#include <ptrie_stable.h>
+#include <vector>
+#include "utils.h"
 
-#include <ptrie.h>
+using namespace ptrie;
+using namespace std;
 
-BOOST_AUTO_TEST_CASE(PassTest)
+BOOST_AUTO_TEST_CASE(PseudoRand1)
 {
-    BOOST_CHECK_EQUAL(true, true);
+    for(size_t seed = 1337; seed < (1337+10); ++seed) {
+        set_stable<> set;
+        vector<size_t> ids;
+        binarywrapper_t scratchpad((20+sizeof(size_t))*8);
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.insert(data);
+            BOOST_CHECK(res.first);
+            ids.push_back(res.second);
+            set.unpack(res.second, scratchpad.raw());
+
+            // shallow copy
+            binarywrapper_t shallow(scratchpad.raw(), data.size()*8);
+            BOOST_CHECK_EQUAL(shallow.size(), data.size());
+            BOOST_CHECK(shallow == data);
+            data.release();
+        }
+
+        // let us unwrap everything and check that it is there!
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            set.unpack(ids[i], scratchpad.raw());
+
+            // shallow copy
+            binarywrapper_t shallow(scratchpad.raw(), data.size()*8);
+            BOOST_CHECK_EQUAL(shallow.size(), data.size());
+            BOOST_CHECK(shallow == data);
+            data.release();
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
+{
+    for(size_t seed = 42; seed < (42+10); ++seed) {
+        set_stable<10,2> set;
+        vector<size_t> ids;
+        binarywrapper_t scratchpad((20+sizeof(size_t))*8);
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            auto res = set.insert(data);
+            BOOST_CHECK(res.first);
+            ids.push_back(res.second);
+            set.unpack(res.second, scratchpad.raw());
+
+            // shallow copy
+            binarywrapper_t shallow(scratchpad.raw(), data.size()*8);
+            BOOST_CHECK_EQUAL(shallow.size(), data.size());
+            BOOST_CHECK(shallow == data);
+            data.release();
+        }
+
+        // let us unwrap everything and check that it is there!
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            binarywrapper_t data = rand_data(i + seed, 20);
+            set.unpack(ids[i], scratchpad.raw());
+
+            // shallow copy
+            binarywrapper_t shallow(scratchpad.raw(), data.size()*8);
+            BOOST_CHECK_EQUAL(shallow.size(), data.size());
+            BOOST_CHECK(shallow == data);
+            data.release();
+        }
+    }
 }
