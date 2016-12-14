@@ -144,6 +144,7 @@ namespace ptrie {
         fwdnode_t* _root;
     protected:
         node_t* new_node();
+        void pop_node();
 
         fwdnode_t* new_fwd();
 
@@ -215,6 +216,12 @@ namespace ptrie {
         node_t* no = &_nodes->operator[](n);
         //        std::cout << "NEW NODE >> " << no << std::endl;
         return no;
+    }
+
+    template<PTRIETPL>
+    void
+    set<PTRIEDEF>::pop_node() {
+        _nodes->pop_back(0);
     }
 
     template<PTRIETPL>
@@ -694,17 +701,7 @@ namespace ptrie {
         node->_count = lcnt;
         node->_totsize = lsize;
 
-        size_t b = h_node->_path;
-        size_t e = h_node->_path;
-        for (int i = h_node->_type; i < 8; ++i) {
-            e |= binarywrapper_t::_masks[i];
-        }
-
-        assert(b <= e);
-        do {
-            (*jumppar)[b] = h_node;
-            ++b;
-        } while (b <= e);
+        size_t dist = (h_node->_path - node->_path);
 
         node->_type += 1;
 
@@ -713,16 +710,42 @@ namespace ptrie {
         if (node->_count == 0) // only high node has data
         {
             //            std::cout << "ALL HIGH" << std::endl;
-            node->_data = NULL;
-            h_node->_data = old;
-            split_node(h_node, jumppar, NULL, bsize, byte);
-        } else if (h_node->_count == 0) // only low node has data
+            for(size_t i = node->_path; i < h_node->_path; ++i)
+            {
+                assert(jumppar->_children[i] == node);
+                jumppar->_children[i] = jumppar;
+            }
+
+            node->_path = h_node->_path;
+            node->_count = h_node->_count;
+            node->_data = old;
+            node->_totsize = h_node->_totsize;
+            node->_type = h_node->_type;
+
+
+            pop_node();
+            split_node(node, jumppar, NULL, bsize, byte);
+        }
+        else if (h_node->_count == 0) // only low node has data
         {
             //            std::cout << "ALL LOW" << std::endl;
-            h_node->_data = NULL;
+            for(size_t i = h_node->_path; i < h_node->_path + dist; ++i)
+            {
+                assert(jumppar->_children[i] == node);
+                jumppar->_children[i] = jumppar;
+            }
+
+            pop_node();
             node->_data = old;
             split_node(node, jumppar, locked, bsize, byte);
         } else {
+
+            for(size_t i = h_node->_path; i < h_node->_path + dist; ++i)
+            {
+                assert(jumppar->_children[i] == node);
+                jumppar->_children[i] = h_node;
+            }
+
             //            std::cout << "Moving LOW " << node->_count << " TO " << node << std::endl;
             //            std::cout << "Moving HIGH " << h_node->_count << " TO " << h_node << std::endl;
             h_node->_data = (bucket_t*) malloc(h_node->_totsize + 
@@ -812,7 +835,34 @@ namespace ptrie {
             node->_type = 0;
             node->_path = 0;
             assert(node);
-            for (size_t i = 0; i < 256; ++i) (*fwd)[i] = node;
+
+            size_t s = e2.size();
+            uchar* sc = (uchar*) & s;
+            uchar b = (byte < 2 ? sc[1 - byte] : e2[byte-2]);
+
+            uchar min = b;
+            uchar max = b;
+            int bit = 8;
+            bool stop = false;
+            do {
+                --bit;
+
+                min = min & (~binarywrapper_t::_masks[bit]);
+                max |= binarywrapper_t::_masks[bit];
+                for (int i = min; i <= max ; ++i) {
+                    if(fwd->_children[i] != fwd)
+                    {
+                        max = (max & ~binarywrapper_t::_masks[bit]) | (binarywrapper_t::_masks[bit] & b);
+                        min = min | (binarywrapper_t::_masks[bit] & b);
+                        stop = true;
+                        break;
+                    }
+                }
+            } while(bit > 0 && !stop);
+
+            for (size_t i = min; i <= max; ++i) (*fwd)[i] = node;
+            node->_path = min;
+            node->_type = bit;
         } else
         {
             node = (node_t*)base;
@@ -825,9 +875,9 @@ namespace ptrie {
                 byte * 8,
                 e2.size() * 8);
 
-        //        std::cout << "COULD NOT FIND of size " << e2.size() << std::endl;
-        //        e2.print();
-        //        std::cout << "Inserted into " << node << std::endl;
+//                std::cout << "COULD NOT FIND of size " << e2.size() << std::endl;
+//                e2.print(std::cout);
+//                std::cout << "Inserted into " << node << std::endl;
 
         // make a new bucket, add new entry, copy over old data
 
@@ -944,6 +994,7 @@ namespace ptrie {
         }
         auto r = exists(data, length);
         if (!r.first) {
+
             r = exists(data, length);
             assert(false);
         }

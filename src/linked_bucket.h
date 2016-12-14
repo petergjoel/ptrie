@@ -171,6 +171,12 @@ public:
         // return old counter value, then increment
         return c->_offset + (c->_count++);
     }
+
+    inline void pop_back(size_t thread)
+    {
+        assert(_tnext[thread] != NULL && _tnext[thread]->_count > 0);
+        --_tnext[thread]->_count;
+    }
     
     private:
         
