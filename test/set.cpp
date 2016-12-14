@@ -106,3 +106,15 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
     }
 }
 
+
+BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
+{
+    for(size_t seed = 42; seed < (42+10); ++seed) {
+        set<1,2> set;
+        try_insert(set,
+                  [seed](size_t i) {
+                     return rand_data(seed + i, 16);
+                  },
+                  1024 * 10);
+    }
+}
