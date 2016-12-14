@@ -403,9 +403,8 @@ namespace ptrie {
         low_n->_type = 1;
         node->_type = 1;
 
-        size_t i = 0;
-        for (; i < 128; ++i) (*fwd_n)[i] = low_n;
-        for (; i < 256; ++i) (*fwd_n)[i] = (locked == NULL ? node : locked);
+
+        for (size_t i = 0; i < 256; ++i) (*fwd_n)[i] = (locked == NULL ? node : locked);
 
         (*jumppar)[fwd_n->_path] = fwd_n;
 
@@ -590,18 +589,25 @@ namespace ptrie {
             free(bucket);
             //            std::cout << "SPLIT ALL HIGH" << std::endl;
             low_n->_data = NULL;
-
+            for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = fwd_n;
+            pop_node();
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
             if (hasent)
                 memcpy(low_n->_data->entries(SPLITBOUND, true), bucket->entries(SPLITBOUND, true), SPLITBOUND * sizeof (I));
-
+            for (size_t i = 128; i < 256; ++i) (*fwd_n)[i] = fwd_n;
             free(bucket);
             //            std::cout << "SPLIT ALL LOW" << std::endl;
-            node->_data = NULL;
-            split_node(low_n, fwd_n, NULL, bsize > 0 ? bsize - 1 : 0, byte + 1);
+            node->_data = low_n->_data;
+            node->_path = low_n->_path;
+            node->_count = low_n->_count;
+            node->_totsize = low_n->_totsize;
+            node->_type = low_n->_type;
+            pop_node();
+            split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         } else {
+            for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = low_n;
             if (hasent) {
                 // We are stopping splitting here, so correct entries if needed
                 I* ents = bucket->entries(SPLITBOUND, true);
