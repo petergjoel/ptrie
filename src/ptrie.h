@@ -702,6 +702,7 @@ namespace ptrie {
         node->_totsize = lsize;
 
         size_t dist = (h_node->_path - node->_path);
+        assert(dist > 0);
 
         node->_type += 1;
 
@@ -724,7 +725,7 @@ namespace ptrie {
 
 
             pop_node();
-            split_node(node, jumppar, NULL, bsize, byte);
+            split_node(node, jumppar, locked, bsize, byte);
         }
         else if (h_node->_count == 0) // only low node has data
         {
@@ -862,7 +863,7 @@ namespace ptrie {
 
             for (size_t i = min; i <= max; ++i) (*fwd)[i] = node;
             node->_path = min;
-            node->_type = bit;
+            node->_type = bit + 1;
         } else
         {
             node = (node_t*)base;
