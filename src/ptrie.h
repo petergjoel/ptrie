@@ -162,6 +162,8 @@ namespace ptrie {
             else return d;
         }
 
+        void erase(node_t* node, size_t bucketid);
+
     public:
         set();
         ~set();
@@ -170,6 +172,8 @@ namespace ptrie {
         returntype_t insert(const uchar* data, uint16_t length);
         returntype_t exists(binarywrapper_t wrapper);
         returntype_t exists(const uchar* data, uint16_t length);
+        bool         erase (binarywrapper_t wrapper);
+        bool         erase (const uchar* data, uint16_t length);
     };
 
     template<PTRIETPL>
@@ -1021,6 +1025,44 @@ namespace ptrie {
         return exists(wrapper.raw(), wrapper.size());
     }
 
+    template<PTRIETPL>
+    void
+    set<PTRIEDEF>::erase(node_t* node, size_t bucketid)
+    {
+
+
+
+    }
+
+    template<PTRIETPL>
+    bool
+    set<PTRIEDEF>::erase(binarywrapper_t wrapper)
+    {
+        return erase(wrapper.raw(), wrapper.size());
+    }
+
+    template<PTRIETPL>
+    bool
+    set<PTRIEDEF>::erase(const uchar *data, uint16_t length)
+    {
+        binarywrapper_t e2((uchar*) data, length * 8);
+        uint b_index = 0;
+        fwdnode_t* fwd = _root;
+        base_t* base = NULL;
+        uint byte = 0;
+
+        bool res = best_match(e2, &fwd, &base, byte, b_index);
+
+        if(!res)
+        {
+            return false;
+        }
+        else
+        {
+            erase((node_t*)base, b_index);
+            return true;
+        }
+    }
 }
 
 
