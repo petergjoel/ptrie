@@ -64,7 +64,7 @@ namespace ptrie {
 
     template<
     uint16_t HEAPBOUND = 128,
-    uint16_t SPLITBOUND = 128,
+    uint16_t SPLITBOUND = 129,
     size_t ALLOCSIZE = (1024 * 64),
     size_t FWDALLOC = 256,
     typename T = void,
@@ -74,8 +74,8 @@ namespace ptrie {
         static_assert(HEAPBOUND * SPLITBOUND < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * SPLITBOUND should be less than 2^16");
 
-        static_assert(SPLITBOUND > 1,
-                "SPLITBOUND MUST BE LARGER THAN 1");
+        static_assert(SPLITBOUND > sizeof(size_t),
+                "SPLITBOUND MUST BE LARGER THAN sizeof(size_t)");
 
         static_assert(HEAPBOUND > 0,
                 "HEAPBOUND MUST BE LARGER THAN 0");
@@ -162,7 +162,7 @@ namespace ptrie {
             else return d;
         }
 
-        void erase(node_t* node, size_t bucketid);
+        void erase(fwdnode_t* parent, node_t* node, size_t bucketid);
 
     public:
         set();
@@ -173,7 +173,7 @@ namespace ptrie {
         returntype_t exists(binarywrapper_t wrapper);
         returntype_t exists(const uchar* data, uint16_t length);
         bool         erase (binarywrapper_t wrapper);
-        bool         erase (const uchar* data, uint16_t length);
+        bool         erase (const uchar* data, size_t length);
     };
 
     template<PTRIETPL>
@@ -273,7 +273,7 @@ namespace ptrie {
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
-
+        assert(node->_totsize < 256*(sizeof(size_t)+1));
         const bool hasent = _entries != NULL;
         bool found = false;
 
@@ -463,13 +463,13 @@ namespace ptrie {
         //if(bucketsize > 0)free(node->_data);
 
         // allocate new buckets
-        node->_totsize = hsize;
+        node->_totsize = hsize > 0 ? hsize : 0;
         node->_count = hcnt;
         if (hcnt == 0) node->_data = NULL;
         else node->_data = (bucket_t*) malloc(node->_totsize + 
                 bucket_t::overhead(node->_count, hasent));
 
-        low_n->_totsize = lsize;
+        low_n->_totsize = lsize > 0 ? hsize : 0;
         low_n->_count = lcnt;
         if (lcnt == 0) low_n->_data = NULL;
         else low_n->_data = (bucket_t*) malloc(low_n->_totsize +
@@ -1027,41 +1027,133 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<PTRIEDEF>::erase(node_t* node, size_t bucketid)
+    set<PTRIEDEF>::erase(fwdnode_t* parent, node_t* node, size_t bindex)
     {
+        const bool hasent = _entries != NULL;
 
+        // first find size and amount before
+        uint16_t size = 0;
+        uint16_t before = 0;
+        if (parent == _root)
+        {
+            for(size_t i = 0; i < bindex; ++i)
+            {
+               before += bytes(node->_data->first(node->_count, i));
+            }
+            size = node->_data->first(node->_count, bindex);
+        }
+        else if(parent->_parent == _root) {
+             for(size_t i = 0; i <= bindex; ++i)
+             {
+                 uint16_t t = 0;
+                 uchar* tc = (uchar*)&t;
+                 uchar* fc = (uchar*)&node->_data->first(node->_count, i);
+                 tc[1] = fc[1];
+                 tc[0] = parent->_path;
+                 if(i == bindex) size = t;
+                 else before += bytes(t);
+             }
+        } else {
+            size = node->_totsize / node->_count;
+            before = size * bindex;
+        }
 
+        // got sizes, now we can remove data if we point to anything
+        if(size >= HEAPBOUND || size == sizeof(uchar*))
+        {
+            uchar* src = *((uchar**)&(node->_data->data(node->_count, hasent)[before]));
+            free(src);
+            size = sizeof(uchar*);
+        }
 
+        uint nbucketcount = node->_count - 1;
+        if(nbucketcount == 0)
+        {
+            free(node->_data);
+            node->_data = NULL;
+            node->_count = 0;
+            node->_totsize = 0;
+            // TODO delete back down
+            return;
+        }
+
+        uint nbucketsize = node->_totsize - size;
+
+        bucket_t* nbucket = (bucket_t*) malloc(nbucketsize +
+                bucket_t::overhead(nbucketcount, hasent));
+
+        // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
+        memcpy(&nbucket->first(nbucketcount),
+               &(node->_data->first(node->_count)),
+               bindex * sizeof (uint16_t));
+
+        if(nbucketcount != nbucketsize) {
+            memcpy(&(nbucket->first(nbucketcount, bindex)),
+                   &(node->_data->first(node->_count, bindex + 1)),
+                   (nbucketcount - bindex) * sizeof(uint16_t));
+        }
+
+        size_t entry = 0;
+        if (hasent) {
+            // copy over entries
+            memcpy(nbucket->entries(nbucketcount, true),
+                   node->_data->entries(node->_count, true),
+                   bindex * sizeof (I));
+            memcpy(&(nbucket->entries(nbucketcount, true)[bindex]),
+                   &(node->_data->entries(node->_count, true)[bindex + 1]),
+                    (nbucketcount - bindex) * sizeof (I));
+
+            // copy back entries here in _entries!
+            // TODO fixme!
+        }
+
+        // copy over old data
+        if(size > 0) {
+            memcpy(nbucket->data(nbucketcount, hasent),
+                   node->_data->data(node->_count, hasent), before);
+
+            memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
+                   &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - before));
+
+        }
+
+        free(node->_data);
+        node->_data = nbucket;
+        node->_count = nbucketcount;
+        node->_totsize -= size;
     }
 
     template<PTRIETPL>
     bool
-    set<PTRIEDEF>::erase(binarywrapper_t wrapper)
+    set<PTRIEDEF>::erase(binarywrapper_t encoding)
     {
-        return erase(wrapper.raw(), wrapper.size());
-    }
-
-    template<PTRIETPL>
-    bool
-    set<PTRIEDEF>::erase(const uchar *data, uint16_t length)
-    {
-        binarywrapper_t e2((uchar*) data, length * 8);
         uint b_index = 0;
+
         fwdnode_t* fwd = _root;
         base_t* base = NULL;
         uint byte = 0;
 
-        bool res = best_match(e2, &fwd, &base, byte, b_index);
-
-        if(!res)
+        b_index = 0;
+        bool res = best_match(encoding, &fwd, &base, byte, b_index);
+        returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
+        if(!res || (size_t)fwd == (size_t)base)
         {
             return false;
         }
         else
         {
-            erase((node_t*)base, b_index);
+            erase(fwd, (node_t*)base, b_index);
+            assert(!exists(encoding).first);
             return true;
         }
+    }
+
+    template<PTRIETPL>
+    bool
+    set<PTRIEDEF>::erase(const uchar *data, size_t length)
+    {
+        binarywrapper_t b(data, length*8);
+        return erase(b);
     }
 }
 

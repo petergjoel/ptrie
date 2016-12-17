@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<128,2> set;
+    set<128,sizeof(size_t)+1> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set<1,2> set;
+        set<1,sizeof(size_t)+1> set;
         try_insert(set,
                   [seed](size_t i) {
                      return rand_data(seed + i, 16);
@@ -118,3 +118,27 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
                   1024 * 10);
     }
 }
+
+BOOST_AUTO_TEST_CASE(InsertDeleteByte)
+{
+    set<> set;
+    try_insert(set,
+              [](size_t i){
+                  binarywrapper_t data(8);
+                  data.raw()[0] = (uchar)i;
+                  return data;
+              },
+            256);
+    for(int i = 255; i >= 0; --i)
+    {
+        binarywrapper_t data(8);
+        data.raw()[0] = (uchar)i;
+        bool res = set.erase(data);
+        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+
+        auto exists = set.exists(data);
+        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        data.release();
+    }
+}
+
