@@ -163,7 +163,8 @@ namespace ptrie {
         }
 
         void erase(fwdnode_t* parent, node_t* node, size_t bucketid);
-
+        bool merge_down(fwdnode_t* parent, node_t* node);
+        void init();
     public:
         set();
         ~set();
@@ -198,8 +199,16 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    set<PTRIEDEF>::set()
+    void set<PTRIEDEF>::init()
     {
+        delete _nodes;
+        delete _fwd;
+        delete _entries;
+        if(_entries != NULL)
+        {
+            _entries = new linked_bucket_t<entry_t, ALLOCSIZE>(1);
+        }
+
         _nodes = new linked_bucket_t<node_t, ALLOCSIZE>(1);
         _fwd = new linked_bucket_t<fwdnode_t, FWDALLOC>(1);
 
@@ -211,6 +220,12 @@ namespace ptrie {
         size_t i = 0;
         for (; i < 128; ++i) (*_root)[i] = _root;
         for (; i < 256; ++i) (*_root)[i] = _root;
+    }
+
+    template<PTRIETPL>
+    set<PTRIEDEF>::set()
+    {
+        init();
     }
 
     template<PTRIETPL>
@@ -1025,6 +1040,107 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
+    bool
+    set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node)
+    {
+        if(node->_type == 0)
+        {
+            // stop mergin for now.
+            return false;
+        }
+        else
+        {
+            uchar path = node->_path;
+            base_t* child;
+            if(path & binarywrapper_t::_masks[node->_type - 1])
+            {
+                child = parent->_children[
+                         path & ~binarywrapper_t::_masks[node->_type - 1]];
+            }
+            else
+            {
+                child = parent->_children[
+                        path | binarywrapper_t::_masks[node->_type - 1]];
+            }
+
+            if(child->_type != node->_type)
+            {
+                assert(child->_type > node->_type);
+                return false;
+            }
+            else
+            {
+
+                node_t* other = (node_t*)child;
+
+                const bool hasent = _entries != NULL;
+                const uint nbucketcount = node->_count + other->_count;
+                const uint nbucketsize = node->_totsize + other->_totsize;
+
+                if(nbucketcount >= SPLITBOUND)
+                    return false;
+
+                bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
+                                                    bucket_t::overhead(nbucketcount, hasent));
+                node_t* first = node;
+                node_t* second = other;
+                if(path & binarywrapper_t::_masks[node->_type - 1])
+                {
+                   std::swap(first, second);
+                }
+
+                memcpy(&nbucket->first(nbucketcount),
+                       &(first->_data->first(first->_count)),
+                       first->_count * sizeof(uint16_t));
+
+                memcpy(&(nbucket->first(nbucketcount, first->_count)),
+                        &(second->_data->first(second->_count)),
+                        second->_count * sizeof(uint16_t));
+
+                if (hasent) {
+                    // copy over entries
+                    memcpy(nbucket->entries(nbucketcount, true),
+                           first->_data->entries(first->_count, true),
+                           first->_count * sizeof(I));
+                    memcpy(&(nbucket->entries(nbucketcount, true)[first->_count]),
+                           second->_data->entries(second->_count, true),
+                           second->_count * sizeof(I));
+
+                }
+
+                // copy over old data
+                if (nbucketsize > 0) {
+                    memcpy(nbucket->data(nbucketcount, hasent),
+                           first->_data->data(first->_count, hasent), first->_totsize);
+
+                    memcpy(&(nbucket->data(nbucketcount, hasent)[first->_totsize]),
+                           second->_data->data(second->_count, hasent), second->_totsize);
+
+                }
+                free(node->_data);
+                node->_data = nbucket;
+                node->_totsize = nbucketsize;
+                node->_count = nbucketcount;
+                node->_type -= 1;
+                node->_path = node->_path & ~binarywrapper_t::_masks[node->_type];
+                for(size_t i = 0; i < 256; ++i)
+                {
+                    if(parent->_children[i] == other) parent->_children[i] = node;
+                }
+                if(nbucketsize <= SPLITBOUND / 3)
+                {
+                    return merge_down(parent, node);
+                }
+                else
+                {
+                    return true;
+                }
+            }
+        }
+        return true;
+    }
+
+    template<PTRIETPL>
     void
     set<PTRIEDEF>::erase(fwdnode_t* parent, node_t* node, size_t bindex)
     {
@@ -1066,60 +1182,61 @@ namespace ptrie {
         }
 
         uint nbucketcount = node->_count - 1;
-        if(nbucketcount == 0)
+        if(nbucketcount > 0) {
+            uint nbucketsize = node->_totsize - size;
+
+            bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
+                                                    bucket_t::overhead(nbucketcount, hasent));
+
+            // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
+            memcpy(&nbucket->first(nbucketcount),
+                   &(node->_data->first(node->_count)),
+                   bindex * sizeof(uint16_t));
+
+            if (nbucketcount != nbucketsize) {
+                memcpy(&(nbucket->first(nbucketcount, bindex)),
+                       &(node->_data->first(node->_count, bindex + 1)),
+                       (nbucketcount - bindex) * sizeof(uint16_t));
+            }
+
+            size_t entry = 0;
+            if (hasent) {
+                // copy over entries
+                memcpy(nbucket->entries(nbucketcount, true),
+                       node->_data->entries(node->_count, true),
+                       bindex * sizeof(I));
+                memcpy(&(nbucket->entries(nbucketcount, true)[bindex]),
+                       &(node->_data->entries(node->_count, true)[bindex + 1]),
+                       (nbucketcount - bindex) * sizeof(I));
+
+                // copy back entries here in _entries!
+                // TODO fixme!
+            }
+
+            // copy over old data
+            if (size > 0) {
+                memcpy(nbucket->data(nbucketcount, hasent),
+                       node->_data->data(node->_count, hasent), before);
+
+                memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
+                       &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - before));
+
+            }
+            free(node->_data);
+            node->_data = nbucket;
+        }
+        else
         {
             free(node->_data);
             node->_data = NULL;
-            node->_count = 0;
-            node->_totsize = 0;
-            // TODO delete back down
-            return;
         }
-
-        uint nbucketsize = node->_totsize - size;
-
-        bucket_t* nbucket = (bucket_t*) malloc(nbucketsize +
-                bucket_t::overhead(nbucketcount, hasent));
-
-        // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
-        memcpy(&nbucket->first(nbucketcount),
-               &(node->_data->first(node->_count)),
-               bindex * sizeof (uint16_t));
-
-        if(nbucketcount != nbucketsize) {
-            memcpy(&(nbucket->first(nbucketcount, bindex)),
-                   &(node->_data->first(node->_count, bindex + 1)),
-                   (nbucketcount - bindex) * sizeof(uint16_t));
-        }
-
-        size_t entry = 0;
-        if (hasent) {
-            // copy over entries
-            memcpy(nbucket->entries(nbucketcount, true),
-                   node->_data->entries(node->_count, true),
-                   bindex * sizeof (I));
-            memcpy(&(nbucket->entries(nbucketcount, true)[bindex]),
-                   &(node->_data->entries(node->_count, true)[bindex + 1]),
-                    (nbucketcount - bindex) * sizeof (I));
-
-            // copy back entries here in _entries!
-            // TODO fixme!
-        }
-
-        // copy over old data
-        if(size > 0) {
-            memcpy(nbucket->data(nbucketcount, hasent),
-                   node->_data->data(node->_count, hasent), before);
-
-            memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
-                   &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - before));
-
-        }
-
-        free(node->_data);
-        node->_data = nbucket;
         node->_count = nbucketcount;
         node->_totsize -= size;
+        if(nbucketcount <= SPLITBOUND / 3)
+        {
+            merge_down(parent, node);
+        }
+
     }
 
     template<PTRIETPL>
