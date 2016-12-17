@@ -74,11 +74,11 @@ namespace ptrie {
         static_assert(HEAPBOUND * SPLITBOUND < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * SPLITBOUND should be less than 2^16");
 
-        static_assert(SPLITBOUND > sizeof(size_t),
-                "SPLITBOUND MUST BE LARGER THAN sizeof(size_t)");
+        static_assert(SPLITBOUND > 1,
+                "SPLITBOUND MUST BE LARGER THAN 1");
 
-        static_assert(HEAPBOUND > 0,
-                "HEAPBOUND MUST BE LARGER THAN 0");
+        static_assert(HEAPBOUND > sizeof(size_t),
+                "HEAPBOUND MUST BE LARGER THAN sizeof(size_t)");
     protected:
 
         struct node_t;
@@ -273,7 +273,6 @@ namespace ptrie {
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
-        assert(node->_totsize < 256*(sizeof(size_t)+1));
         const bool hasent = _entries != NULL;
         bool found = false;
 
