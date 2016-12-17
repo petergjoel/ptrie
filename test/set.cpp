@@ -22,7 +22,7 @@
 #include "utils.h"
 
 using namespace ptrie;
-
+/*
 BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
                   1024 * 10);
     }
 }
-
+*/
 BOOST_AUTO_TEST_CASE(InsertDeleteByte)
 {
     set<sizeof(size_t)+1, 3> set;

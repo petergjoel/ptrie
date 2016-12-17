@@ -1045,7 +1045,26 @@ namespace ptrie {
     {
         if(node->_type == 0)
         {
-            // stop mergin for now.
+            if(node->_count == 0)
+            {
+                if(parent != _root)
+                {
+                    // we can remove fwd and go back one level
+                    parent->_parent->_children[parent->_path] = node;
+                    node->_path = parent->_path;
+                    return merge_down(parent->_parent, node);
+                }
+                else
+                {
+                    // clear everything!
+                    init();
+                }
+            }
+            else
+            {
+                // we need to re-add path to items here.
+
+            }
             return false;
         }
         else
@@ -1065,6 +1084,7 @@ namespace ptrie {
 
             if(child->_type != node->_type)
             {
+                // The other node is not ready for merging yet.
                 assert(child->_type > node->_type);
                 return false;
             }
