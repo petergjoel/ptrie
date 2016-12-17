@@ -1060,11 +1060,6 @@ namespace ptrie {
                     init();
                 }
             }
-            else
-            {
-                // we need to re-add path to items here.
-
-            }
             return false;
         }
         else
@@ -1185,8 +1180,8 @@ namespace ptrie {
                  uchar* fc = (uchar*)&node->_data->first(node->_count, i);
                  tc[1] = fc[1];
                  tc[0] = parent->_path;
-                 if(i == bindex) size = t;
-                 else before += bytes(t);
+                 if(i == bindex) size = (t - 1);
+                 else before += bytes(t - 1);
              }
         } else {
             size = node->_totsize / node->_count;
