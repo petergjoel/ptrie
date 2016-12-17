@@ -469,7 +469,7 @@ namespace ptrie {
         else node->_data = (bucket_t*) malloc(node->_totsize + 
                 bucket_t::overhead(node->_count, hasent));
 
-        low_n->_totsize = lsize > 0 ? hsize : 0;
+        low_n->_totsize = lsize > 0 ? lsize : 0;
         low_n->_count = lcnt;
         if (lcnt == 0) low_n->_data = NULL;
         else low_n->_data = (bucket_t*) malloc(low_n->_totsize +
