@@ -74,8 +74,8 @@ namespace ptrie {
         static_assert(HEAPBOUND * SPLITBOUND < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * SPLITBOUND should be less than 2^16");
 
-        static_assert(SPLITBOUND > 1,
-                "SPLITBOUND MUST BE LARGER THAN 1");
+        static_assert(SPLITBOUND > 3,
+                "SPLITBOUND MUST BE LARGER THAN 3");
 
         static_assert(HEAPBOUND > sizeof(size_t),
                 "HEAPBOUND MUST BE LARGER THAN sizeof(size_t)");
@@ -162,8 +162,8 @@ namespace ptrie {
             else return d;
         }
 
-        void erase(fwdnode_t* parent, node_t* node, size_t bucketid);
-        bool merge_down(fwdnode_t* parent, node_t* node);
+        void erase(fwdnode_t* parent, node_t* node, size_t bucketid, int byte);
+        bool merge_down(fwdnode_t* parent, node_t* node, int byte);
         void init();
     public:
         set();
@@ -1041,8 +1041,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node)
+    set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node, int bytes)
     {
+        const bool hasent = _entries != NULL;
         if(node->_type == 0)
         {
             if(node->_count == 0)
@@ -1052,7 +1053,9 @@ namespace ptrie {
                     // we can remove fwd and go back one level
                     parent->_parent->_children[parent->_path] = node;
                     node->_path = parent->_path;
-                    return merge_down(parent->_parent, node);
+                    return merge_down(parent->_parent, node,
+                                      bytes != std::numeric_limits<int>::min()
+                                      ? bytes + 1 :  std::numeric_limits<int>::min());
                 }
                 else
                 {
@@ -1060,6 +1063,100 @@ namespace ptrie {
                     init();
                 }
             }
+            else if(parent != _root)
+            {
+                // we need to re-add path to items here.
+                if(parent->_parent == _root) {
+                    // something
+                    /*for(size_t i = 0; i <= bindex; ++i)
+                    {
+                        uint16_t t = 0;
+                        uchar* tc = (uchar*)&t;
+                        uchar* fc = (uchar*)&node->_data->first(node->_count, i);
+                        tc[1] = fc[1];
+                        tc[0] = parent->_path;
+                        if(i == bindex) size = t-1;
+                        else before += bytes(t);
+                    }*/
+                }
+                else
+                {
+                    assert(node->_count > 0);
+                    if(bytes == std::numeric_limits<int>::min())
+                    {
+                        int depth = 0;
+                        uint16_t length = 0;
+                        uchar* l = (uchar*)&length;
+                        fwdnode_t* tmp = parent;
+
+                        while(tmp != _root)
+                        {
+                            l[0] = l[1];
+                            l[1] = tmp->_path;
+                            tmp = tmp->_parent;
+                            ++depth;
+                        }
+                        assert(length + 1 >= depth);
+                        bytes = length;
+                        bytes -= depth;
+                    }
+
+                    bytes += 1;
+                    // first copy in path to firsts.
+
+                    assert(bytes >= 0);
+
+                    if(bytes == 0)
+                    {
+                        node->_path = parent->_path;
+                        parent->_parent->_children[parent->_path] = node;
+                        node->_type = 8;
+
+                        for(size_t i = 0; i < node->_count; ++i)
+                        {
+                            uchar* f = (uchar*)&node->_data->first(node->_count, i);
+                            f[0] = f[1];
+                            f[1] = parent->_path;
+                        }
+                        return true;
+                    }
+                    else if(bytes > 0)
+                    {
+                        node->_path = parent->_path;
+                        parent->_parent->_children[node->_path] = node;
+                        node->_type = 8;
+
+                        const size_t nbucketsize = node->_totsize + node->_count;
+                        bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
+                                                    bucket_t::overhead(node->_count, hasent));
+
+                        memcpy(&nbucket->first(node->_count),
+                               &(node->_data->first(node->_count)),
+                               node->_count * sizeof(uint16_t));
+
+                        for(size_t i = 0; i < node->_count; ++i)
+                        {
+                            uchar* f = (uchar*)&nbucket->first(node->_count, i);
+                            nbucket->first(node->_count, i) = node->_data->first(node->_count, i);
+                            f[1] = f[0];
+                            f[0] = parent->_path;
+                            // in some cases we need to expand to heap here!
+                            nbucket->data(node->_count, hasent)[i] = parent->_path;
+                            // also, handle entries here!
+                        }
+
+
+                        size_t length = node->_totsize / node->_count;
+
+                        node->_data = nbucket;
+                        node->_path = parent->_path;
+                        node->_type = 8;
+                        node->_totsize += node->_count;
+                        assert(node->_totsize == (node->_count*(length+1)));
+                    }
+                }
+            }
+
             return false;
         }
         else
@@ -1088,7 +1185,6 @@ namespace ptrie {
 
                 node_t* other = (node_t*)child;
 
-                const bool hasent = _entries != NULL;
                 const uint nbucketcount = node->_count + other->_count;
                 const uint nbucketsize = node->_totsize + other->_totsize;
 
@@ -1138,13 +1234,22 @@ namespace ptrie {
                 node->_count = nbucketcount;
                 node->_type -= 1;
                 node->_path = node->_path & ~binarywrapper_t::_masks[node->_type];
-                for(size_t i = 0; i < 256; ++i)
+                for(size_t i = node->_path; i < 256; ++i)
                 {
-                    if(parent->_children[i] == other) parent->_children[i] = node;
+                    if(parent->_children[i] == other ||
+                       parent->_children[i] == node)
+                    {
+                        parent->_children[i] = node;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
-                if(nbucketsize <= SPLITBOUND / 3)
+                if(nbucketcount <= SPLITBOUND / 3)
                 {
-                    return merge_down(parent, node);
+                    assert(nbucketcount > 0);
+                    return merge_down(parent, node, bytes);
                 }
                 else
                 {
@@ -1157,7 +1262,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<PTRIEDEF>::erase(fwdnode_t* parent, node_t* node, size_t bindex)
+    set<PTRIEDEF>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
     {
         const bool hasent = _entries != NULL;
 
@@ -1178,10 +1283,11 @@ namespace ptrie {
                  uint16_t t = 0;
                  uchar* tc = (uchar*)&t;
                  uchar* fc = (uchar*)&node->_data->first(node->_count, i);
-                 tc[1] = fc[1];
-                 tc[0] = parent->_path;
-                 if(i == bindex) size = (t - 1);
-                 else before += bytes(t - 1);
+                 tc[0] = fc[1];
+                 tc[1] = parent->_path;
+                 --t;
+                 if(i == bindex) size = t;
+                 else before += bytes(t);
              }
         } else {
             size = node->_totsize / node->_count;
@@ -1249,9 +1355,8 @@ namespace ptrie {
         node->_totsize -= size;
         if(nbucketcount <= SPLITBOUND / 3)
         {
-            merge_down(parent, node);
+            merge_down(parent, node, on_heap);
         }
-
     }
 
     template<PTRIETPL>
@@ -1273,7 +1378,9 @@ namespace ptrie {
         }
         else
         {
-            erase(fwd, (node_t*)base, b_index);
+            int onheap = encoding.size();
+            onheap -= byte;
+            erase(fwd, (node_t*)base, b_index, onheap);
             assert(!exists(encoding).first);
             return true;
         }

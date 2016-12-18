@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2016  Peter G. Jensen <root@petergjoel.dk>
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 #include "utils.h"
 
 using namespace ptrie;
-/*
+
 BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<128,sizeof(size_t)+1> set;
+    set<128,4> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set<sizeof(size_t)+1, 2> set;
+        set<sizeof(size_t)+1, 4> set;
         try_insert(set,
                   [seed](size_t i) {
                      return rand_data(seed + i, 16);
@@ -118,10 +118,11 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
                   1024 * 10);
     }
 }
-*/
+
+
 BOOST_AUTO_TEST_CASE(InsertDeleteByte)
 {
-    set<sizeof(size_t)+1, 3> set;
+    set<> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -134,26 +135,31 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByte)
         binarywrapper_t data(8);
         data.raw()[0] = (uchar)i;
         bool res = set.erase(data);
-        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
         auto exists = set.exists(data);
-        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
 
-        for(int j = 0; j < i; ++j)
+        bool ok = true;
+        for(int j = 0; j < 256; ++j)
         {
-            data.raw()[0] = j;
+            data.raw()[0] = (uchar)j;
             auto exists = set.exists(data);
-            BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
-
-            for(int j = 0; j < i; ++j)
+            if(j >= i)
             {
-                data.raw()[0] = (uchar)j;
-                auto exists = set.exists(data);
-                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+                ok &= !exists.first;
+                BOOST_CHECK_MESSAGE(!exists.first,
+                                    "FAILED ON DELETE, REMOVED " << i << " REINTRODUCED " << j << " BIN "
+                                                                 << data);
             }
-
-
+            else {
+                ok &= exists.first;
+                BOOST_CHECK_MESSAGE(exists.first,
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN "
+                                                                 << data);
+            }
         }
+        BOOST_REQUIRE(ok);
         data.release();
     }
 }
@@ -161,7 +167,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByte)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
 {
-    set<sizeof(size_t)+1, 3> set;
+    set<> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -195,4 +201,88 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
         data.release();
     }
 }
+
+
+
+BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
+{
+    set<sizeof(size_t)+1, 4> set;
+    try_insert(set,
+              [](size_t i){
+                  binarywrapper_t data(8);
+                  data.raw()[0] = (uchar)i;
+                  return data;
+              },
+            256);
+    for(int i = 255; i >= 0; --i)
+    {
+        binarywrapper_t data(8);
+        data.raw()[0] = (uchar)i;
+        bool res = set.erase(data);
+        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+
+        auto exists = set.exists(data);
+        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+
+        for(int j = 0; j < 256; ++j)
+        {
+            data.raw()[0] = j;
+            auto exists = set.exists(data);
+            if(j < i)
+                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+            else
+                BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE " << i << ", REINTRODUCED " << j << " BIN " << data << " ");
+
+            for(int j = 0; j < i; ++j)
+            {
+                data.raw()[0] = (uchar)j;
+                auto exists = set.exists(data);
+                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+            }
+
+
+        }
+        data.release();
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
+{
+    set<sizeof(size_t)+1, 4> set;
+    try_insert(set,
+              [](size_t i){
+                  binarywrapper_t data(8);
+                  data.raw()[0] = (uchar)i;
+                  return data;
+              },
+            256);
+    for(int i = 255; i >= 0; --i)
+    {
+        binarywrapper_t data(8);
+        if(i % 2)
+            data.raw()[0] = (uchar)127 - (i/2);
+        else
+            data.raw()[0] = (uchar)128 + (i/2);
+
+        bool res = set.erase(data);
+        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+
+        auto exists = set.exists(data);
+        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+
+        for(int j = 0; j < i; ++j)
+        {
+            if(j % 2)
+                data.raw()[0] = (uchar)127 - (j/2);
+            else
+                data.raw()[0] = (uchar)128 + (j/2);
+            auto exists = set.exists(data);
+            BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+        }
+        data.release();
+    }
+}
+
+
 

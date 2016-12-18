@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set_stable<sizeof(size_t)+1, 2> set;
+        set_stable<sizeof(size_t)+1, 4> set;
         vector<size_t> ids;
         binarywrapper_t scratchpad((20+sizeof(size_t))*8);
 
