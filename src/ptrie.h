@@ -1041,48 +1041,73 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node, int bytes)
+    set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
     {
         const bool hasent = _entries != NULL;
         if(node->_type == 0)
         {
             if(node->_count == 0)
             {
-                if(parent != _root)
-                {
-                    // we can remove fwd and go back one level
-                    parent->_parent->_children[parent->_path] = node;
-                    node->_path = parent->_path;
-                    return merge_down(parent->_parent, node,
-                                      bytes != std::numeric_limits<int>::min()
-                                      ? bytes + 1 :  std::numeric_limits<int>::min());
-                }
-                else
-                {
-                    // clear everything!
-                    init();
-                }
+                do {
+                    if (parent != _root) {
+                        // we can remove fwd and go back one level
+                        parent->_parent->_children[parent->_path] = parent->_parent;
+                        base_t* other = NULL;
+                        if(parent->_path & binarywrapper_t::_masks[7])
+                        {
+                            other = parent->_children[parent->_path & ~binarywrapper_t::_masks[7]];
+                        }
+                        else
+                        {
+                            other = parent->_children[parent->_path | binarywrapper_t::_masks[7]];
+                        }
+                        ++on_heap;
+                        parent = parent->_parent;
+                        if(other->_type != 255)
+                        {
+                            node = (node_t*)other;
+                            if(node->_count <= SPLITBOUND / 3) {
+                                return merge_down(parent, node, on_heap);
+                            } else
+                            {
+                                return true;
+                            }
+                        }
+
+                        for(size_t i = 0; i < 256; ++i)
+                        {
+                            if(parent->_children[i] != parent) return true;
+                        }
+                    } else {
+                        // clear everything!
+                        init();
+                        return true;
+                    }
+                } while(true);
             }
             else if(parent != _root)
             {
                 // we need to re-add path to items here.
                 if(parent->_parent == _root) {
                     // something
-                    /*for(size_t i = 0; i <= bindex; ++i)
+                    uint16_t sizes[node->_count];
+                    size_t totsize = 0;
+                    for(size_t i = 0; i < node->_count; ++i)
                     {
                         uint16_t t = 0;
                         uchar* tc = (uchar*)&t;
                         uchar* fc = (uchar*)&node->_data->first(node->_count, i);
-                        tc[1] = fc[1];
-                        tc[0] = parent->_path;
-                        if(i == bindex) size = t-1;
-                        else before += bytes(t);
-                    }*/
+                        tc[0] = fc[1];
+                        tc[1] = parent->_path;
+                        sizes[i] = t;
+                        totsize += bytes(sizes[i]);
+                    }
+                    return true;
                 }
                 else
                 {
                     assert(node->_count > 0);
-                    if(bytes == std::numeric_limits<int>::min())
+                    if(on_heap == std::numeric_limits<int>::min())
                     {
                         int depth = 0;
                         uint16_t length = 0;
@@ -1097,16 +1122,16 @@ namespace ptrie {
                             ++depth;
                         }
                         assert(length + 1 >= depth);
-                        bytes = length;
-                        bytes -= depth;
+                        on_heap = length;
+                        on_heap -= depth;
                     }
 
-                    bytes += 1;
+                    on_heap += 1;
                     // first copy in path to firsts.
 
-                    assert(bytes >= 0);
+                    assert(on_heap >= 0);
 
-                    if(bytes == 0)
+                    if(on_heap == 0)
                     {
                         node->_path = parent->_path;
                         parent->_parent->_children[parent->_path] = node;
@@ -1118,9 +1143,8 @@ namespace ptrie {
                             f[0] = f[1];
                             f[1] = parent->_path;
                         }
-                        return true;
                     }
-                    else if(bytes > 0)
+                    else if(on_heap > 0)
                     {
                         node->_path = parent->_path;
                         parent->_parent->_children[node->_path] = node;
@@ -1156,8 +1180,11 @@ namespace ptrie {
                     }
                 }
             }
-
-            return false;
+            if(node->_count <= SPLITBOUND / 3)
+            {
+                assert(node->_count > 0);
+                return merge_down(parent->_parent, node, on_heap);
+            }
         }
         else
         {
@@ -1174,7 +1201,7 @@ namespace ptrie {
                         path | binarywrapper_t::_masks[node->_type - 1]];
             }
 
-            if(child->_type != node->_type)
+            if(child->_type != node->_type && child->_type != 255)
             {
                 // The other node is not ready for merging yet.
                 assert(child->_type > node->_type);
@@ -1183,73 +1210,73 @@ namespace ptrie {
             else
             {
 
-                node_t* other = (node_t*)child;
+                if(child->_type != 255) {
+                    node_t *other = (node_t *) child;
 
-                const uint nbucketcount = node->_count + other->_count;
-                const uint nbucketsize = node->_totsize + other->_totsize;
+                    const uint nbucketcount = node->_count + other->_count;
+                    const uint nbucketsize = node->_totsize + other->_totsize;
 
-                if(nbucketcount >= SPLITBOUND)
-                    return false;
+                    if (nbucketcount >= SPLITBOUND)
+                        return false;
 
-                bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
-                                                    bucket_t::overhead(nbucketcount, hasent));
-                node_t* first = node;
-                node_t* second = other;
-                if(path & binarywrapper_t::_masks[node->_type - 1])
-                {
-                   std::swap(first, second);
+                    bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
+                                                            bucket_t::overhead(nbucketcount, hasent));
+                    node_t *first = node;
+                    node_t *second = other;
+                    if (path & binarywrapper_t::_masks[node->_type - 1]) {
+                        std::swap(first, second);
+                    }
+
+                    memcpy(&nbucket->first(nbucketcount),
+                           &(first->_data->first(first->_count)),
+                           first->_count * sizeof(uint16_t));
+
+                    memcpy(&(nbucket->first(nbucketcount, first->_count)),
+                           &(second->_data->first(second->_count)),
+                           second->_count * sizeof(uint16_t));
+
+                    if (hasent) {
+                        // copy over entries
+                        memcpy(nbucket->entries(nbucketcount, true),
+                               first->_data->entries(first->_count, true),
+                               first->_count * sizeof(I));
+                        memcpy(&(nbucket->entries(nbucketcount, true)[first->_count]),
+                               second->_data->entries(second->_count, true),
+                               second->_count * sizeof(I));
+
+                    }
+
+                    // copy over old data
+                    if (nbucketsize > 0) {
+                        memcpy(nbucket->data(nbucketcount, hasent),
+                               first->_data->data(first->_count, hasent), first->_totsize);
+
+                        memcpy(&(nbucket->data(nbucketcount, hasent)[first->_totsize]),
+                               second->_data->data(second->_count, hasent), second->_totsize);
+
+                    }
+                    free(node->_data);
+                    node->_data = nbucket;
+                    node->_totsize = nbucketsize;
+                    node->_count = nbucketcount;
                 }
-
-                memcpy(&nbucket->first(nbucketcount),
-                       &(first->_data->first(first->_count)),
-                       first->_count * sizeof(uint16_t));
-
-                memcpy(&(nbucket->first(nbucketcount, first->_count)),
-                        &(second->_data->first(second->_count)),
-                        second->_count * sizeof(uint16_t));
-
-                if (hasent) {
-                    // copy over entries
-                    memcpy(nbucket->entries(nbucketcount, true),
-                           first->_data->entries(first->_count, true),
-                           first->_count * sizeof(I));
-                    memcpy(&(nbucket->entries(nbucketcount, true)[first->_count]),
-                           second->_data->entries(second->_count, true),
-                           second->_count * sizeof(I));
-
-                }
-
-                // copy over old data
-                if (nbucketsize > 0) {
-                    memcpy(nbucket->data(nbucketcount, hasent),
-                           first->_data->data(first->_count, hasent), first->_totsize);
-
-                    memcpy(&(nbucket->data(nbucketcount, hasent)[first->_totsize]),
-                           second->_data->data(second->_count, hasent), second->_totsize);
-
-                }
-                free(node->_data);
-                node->_data = nbucket;
-                node->_totsize = nbucketsize;
-                node->_count = nbucketcount;
                 node->_type -= 1;
                 node->_path = node->_path & ~binarywrapper_t::_masks[node->_type];
-                for(size_t i = node->_path; i < 256; ++i)
-                {
-                    if(parent->_children[i] == other ||
-                       parent->_children[i] == node)
-                    {
-                        parent->_children[i] = node;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                uchar to = node->_path;
+                for(size_t i = node->_type; i < 8; ++i) {
+                    to = to | binarywrapper_t::_masks[i];
                 }
-                if(nbucketcount <= SPLITBOUND / 3)
+
+                for(size_t i = node->_path; i <= to; ++i)
                 {
-                    assert(nbucketcount > 0);
-                    return merge_down(parent, node, bytes);
+                    assert(parent->_children[i] == child ||
+                       parent->_children[i] == node);
+                    parent->_children[i] = node;
+                }
+                if(node->_count <= SPLITBOUND / 3)
+                {
+                    assert(node->_count > 0);
+                    return merge_down(parent, node, on_heap);
                 }
                 else
                 {
