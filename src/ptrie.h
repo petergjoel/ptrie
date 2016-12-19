@@ -668,6 +668,7 @@ namespace ptrie {
         assert(node->_type <= 8);
 
         //assert(n_node->_lck == 0);
+        assert((node->_path & binarywrapper_t::_masks[node->_type]) == 0);
         h_node->_path = node->_path | binarywrapper_t::_masks[node->_type];
 
         // because we are only really shifting around bits when enc_pos % 8 = 0
@@ -879,6 +880,7 @@ namespace ptrie {
                     {
                         max = (max & ~binarywrapper_t::_masks[bit]) | (binarywrapper_t::_masks[bit] & b);
                         min = min | (binarywrapper_t::_masks[bit] & b);
+                        bit += 1;
                         stop = true;
                         break;
                     }
@@ -887,7 +889,7 @@ namespace ptrie {
 
             for (size_t i = min; i <= max; ++i) (*fwd)[i] = node;
             node->_path = min;
-            node->_type = bit + 1;
+            node->_type = bit;
         } else
         {
             node = (node_t*)base;
@@ -1090,7 +1092,7 @@ namespace ptrie {
                 // we need to re-add path to items here.
                 if(parent->_parent == _root) {
                     // something
-                    uint16_t sizes[node->_count];
+                    uint16_t sizes[256];
                     size_t totsize = 0;
                     for(size_t i = 0; i < node->_count; ++i)
                     {
@@ -1102,7 +1104,78 @@ namespace ptrie {
                         sizes[i] = t;
                         totsize += bytes(sizes[i]);
                     }
-                    return true;
+
+                    bucket_t *nbucket = node->_data;
+                    if(totsize > 0) {
+                        nbucket = (bucket_t *) malloc(totsize +
+                                                      bucket_t::overhead(node->_count,
+                                                                         hasent));
+                    }
+
+                    size_t dcnt = 0;
+                    size_t ocnt = 0;
+                    for(size_t i = 0; i < node->_count; ++i)
+                    {
+                        uchar* f = (uchar*)&nbucket->first(node->_count, i);
+                        nbucket->first(node->_count, i) = node->_data->first(node->_count, i);
+                        uchar push = f[0];
+                        f[0] = f[1];
+                        f[1] = parent->_path;
+                        // in some cases we need to expand to heap here!
+                        if(sizes[i] > 0)
+                        {
+                            if(sizes[i] < HEAPBOUND)
+                            {
+                                nbucket->data(node->_count, hasent)[dcnt] = push;
+                                dcnt += 1;
+                            }
+                            if(sizes[i] < HEAPBOUND && sizes[i] > 1)
+                            {
+                                memcpy(&(nbucket->data(node->_count, hasent)[dcnt]),
+                                           &(node->_data->data(node->_count, hasent)[ocnt]),
+                                                   sizes[i] - 1);
+                                ocnt += sizes[i] - 1;
+                                dcnt += sizes[i] - 1;
+                            }
+                            else if(sizes[i] >= HEAPBOUND)
+                            {
+                                uchar* src = NULL;
+                                uchar* dest = (uchar*)malloc(sizes[i]);
+                                ++dest;
+                                memcpy(&(nbucket->data(node->_count, hasent)[dcnt]), &dest, sizeof(size_t));
+                                dcnt += sizeof(size_t);
+                                if(sizes[i] == HEAPBOUND)
+                                {
+                                    src = &(node->_data->data(node->_count, hasent)[ocnt]);
+                                    memcpy(dest, src, sizes[i] - 1);
+                                    ocnt += sizes[i] - 1;
+                                }
+                                else
+                                {
+                                    assert(sizes[i] > HEAPBOUND);
+                                    // allready on heap, but we need to expand it
+                                    src = *(uchar**)&(node->_data->data(node->_count, hasent)[ocnt]);
+                                    memcpy(dest, src, sizes[i] - 1);
+                                    ocnt += sizeof(size_t);
+                                }
+                                --dest;
+                                dest[0] = push;
+                            }
+                        }
+                        // also, handle entries here!
+                    }
+
+                    assert(ocnt == node->_totsize);
+                    assert(totsize == dcnt);
+
+                    if(nbucket != node->_data) free(node->_data);
+
+                    node->_data = nbucket;
+                    node->_path = parent->_path;
+                    parent->_parent->_children[node->_path] = node;
+                    node->_type = 8;
+                    node->_totsize = totsize;
+                    return merge_down(parent->_parent, node, on_heap + 1);
                 }
                 else
                 {
@@ -1131,12 +1204,12 @@ namespace ptrie {
 
                     assert(on_heap >= 0);
 
+                    node->_path = parent->_path;
+                    parent->_parent->_children[node->_path] = node;
+                    node->_type = 8;
+
                     if(on_heap == 0)
                     {
-                        node->_path = parent->_path;
-                        parent->_parent->_children[parent->_path] = node;
-                        node->_type = 8;
-
                         for(size_t i = 0; i < node->_count; ++i)
                         {
                             uchar* f = (uchar*)&node->_data->first(node->_count, i);
@@ -1146,9 +1219,6 @@ namespace ptrie {
                     }
                     else if(on_heap > 0)
                     {
-                        node->_path = parent->_path;
-                        parent->_parent->_children[node->_path] = node;
-                        node->_type = 8;
 
                         const size_t nbucketsize = node->_totsize + node->_count;
                         bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
@@ -1180,7 +1250,7 @@ namespace ptrie {
                     }
                 }
             }
-            if(node->_count <= SPLITBOUND / 3)
+            if(node->_count <= SPLITBOUND / 3 && parent != _root)
             {
                 assert(node->_count > 0);
                 return merge_down(parent->_parent, node, on_heap);
@@ -1200,6 +1270,8 @@ namespace ptrie {
                 child = parent->_children[
                         path | binarywrapper_t::_masks[node->_type - 1]];
             }
+
+            assert(node != child);
 
             if(child->_type != node->_type && child->_type != 255)
             {
@@ -1322,11 +1394,11 @@ namespace ptrie {
         }
 
         // got sizes, now we can remove data if we point to anything
-        if(size >= HEAPBOUND || size == sizeof(uchar*))
+        if(size >= HEAPBOUND)
         {
             uchar* src = *((uchar**)&(node->_data->data(node->_count, hasent)[before]));
             free(src);
-            size = sizeof(uchar*);
+            size = sizeof(size_t);
         }
 
         uint nbucketcount = node->_count - 1;
@@ -1367,7 +1439,7 @@ namespace ptrie {
                        node->_data->data(node->_count, hasent), before);
 
                 memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
-                       &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - before));
+                       &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - (before + size)));
 
             }
             free(node->_data);
@@ -1407,7 +1479,13 @@ namespace ptrie {
         {
             int onheap = encoding.size();
             onheap -= byte;
-            erase(fwd, (node_t*)base, b_index, onheap);
+            if(b_index != 38) {
+                erase(fwd, (node_t *) base, b_index, onheap);
+            }
+            else
+            {
+                 erase(fwd, (node_t *) base, b_index, onheap);
+            }
             assert(!exists(encoding).first);
             return true;
         }
