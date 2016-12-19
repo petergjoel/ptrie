@@ -1389,7 +1389,8 @@ namespace ptrie {
                  else before += bytes(t);
              }
         } else {
-            size = node->_totsize / node->_count;
+            assert(on_heap != std::numeric_limits<int>::min());
+            size = on_heap > 0 ? on_heap : 0;
             before = size * bindex;
         }
 
@@ -1413,11 +1414,9 @@ namespace ptrie {
                    &(node->_data->first(node->_count)),
                    bindex * sizeof(uint16_t));
 
-            if (nbucketcount != nbucketsize) {
-                memcpy(&(nbucket->first(nbucketcount, bindex)),
+            memcpy(&(nbucket->first(nbucketcount, bindex)),
                        &(node->_data->first(node->_count, bindex + 1)),
                        (nbucketcount - bindex) * sizeof(uint16_t));
-            }
 
             size_t entry = 0;
             if (hasent) {
@@ -1437,9 +1436,10 @@ namespace ptrie {
             if (size > 0) {
                 memcpy(nbucket->data(nbucketcount, hasent),
                        node->_data->data(node->_count, hasent), before);
-
+                assert(node->_totsize >= (before + size));
                 memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
-                       &(node->_data->data(node->_count, hasent)[before + size]), (node->_totsize - (before + size)));
+                       &(node->_data->data(node->_count, hasent)[before + size]),
+                       (node->_totsize - (before + size)));
 
             }
             free(node->_data);
@@ -1479,13 +1479,7 @@ namespace ptrie {
         {
             int onheap = encoding.size();
             onheap -= byte;
-            if(b_index != 38) {
-                erase(fwd, (node_t *) base, b_index, onheap);
-            }
-            else
-            {
-                 erase(fwd, (node_t *) base, b_index, onheap);
-            }
+            erase(fwd, (node_t *) base, b_index, onheap);
             assert(!exists(encoding).first);
             return true;
         }
