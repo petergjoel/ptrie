@@ -1058,46 +1058,47 @@ namespace ptrie {
         size_t ocnt = 0;
         for(size_t i = 0; i < node->_count; ++i)
         {
+            auto const size = _sizes(i);
             uchar* f = (uchar*)&nbucket->first(node->_count, i);
             nbucket->first(node->_count, i) = node->_data->first(node->_count, i);
             uchar push = f[0];
             f[0] = f[1];
             f[1] = topush;
             // in some cases we need to expand to heap here!
-            if(_sizes(i) > 0)
+            if(size > 0)
             {
-                if(_sizes(i) < HEAPBOUND)
+                if(size < HEAPBOUND)
                 {
                     nbucket->data(node->_count, hasent)[dcnt] = push;
                     dcnt += 1;
                 }
-                if(_sizes(i) < HEAPBOUND && _sizes(i) > 1)
+                if(size < HEAPBOUND && size > 1)
                 {
                     memcpy(&(nbucket->data(node->_count, hasent)[dcnt]),
                                &(node->_data->data(node->_count, hasent)[ocnt]),
-                                       _sizes(i) - 1);
-                    ocnt += _sizes(i) - 1;
-                    dcnt += _sizes(i) - 1;
+                                       size - 1);
+                    ocnt += size - 1;
+                    dcnt += size - 1;
                 }
-                else if(_sizes(i) >= HEAPBOUND)
+                else if(size >= HEAPBOUND)
                 {
                     uchar* src = NULL;
-                    uchar* dest = (uchar*)malloc(_sizes(i));
-                    ++dest;
+                    uchar* dest = (uchar*)malloc(size);
                     memcpy(&(nbucket->data(node->_count, hasent)[dcnt]), &dest, sizeof(size_t));
+                    ++dest;
                     dcnt += sizeof(size_t);
-                    if(_sizes(i) == HEAPBOUND)
+                    if(size == HEAPBOUND)
                     {
                         src = &(node->_data->data(node->_count, hasent)[ocnt]);
-                        memcpy(dest, src, _sizes(i) - 1);
-                        ocnt += _sizes(i) - 1;
+                        memcpy(dest, src, size - 1);
+                        ocnt += size - 1;
                     }
                     else
                     {
-                        assert(_sizes(i) > HEAPBOUND);
+                        assert(size > HEAPBOUND);
                         // allready on heap, but we need to expand it
                         src = *(uchar**)&(node->_data->data(node->_count, hasent)[ocnt]);
-                        memcpy(dest, src, _sizes(i) - 1);
+                        memcpy(dest, src, size - 1);
                         ocnt += sizeof(size_t);
                     }
                     --dest;
@@ -1181,7 +1182,6 @@ namespace ptrie {
                 // we need to re-add path to items here.
                 if(parent->_parent == _root) {
                     // something
-                    return true;
                     uint16_t sizes[256];
                     size_t totsize = 0;
                     for(size_t i = 0; i < node->_count; ++i)
@@ -1194,11 +1194,6 @@ namespace ptrie {
                         sizes[i] = t;
                         totsize += bytes(sizes[i]);
                     }
-
-                    auto _sizes = [&sizes](size_t i)
-                    {
-                        return sizes[i];
-                    };
 
                     inject_byte(node, parent->_path, totsize, [&sizes](size_t i )
                     {
@@ -1237,13 +1232,12 @@ namespace ptrie {
                     // first copy in path to firsts.
 
                     assert(on_heap >= 0);
+                    node->_path = parent->_path;
+                    parent->_parent->_children[node->_path] = node;
+                    node->_type = 8;
 
                     if(on_heap == 0)
                     {
-                        node->_path = parent->_path;
-                        parent->_parent->_children[node->_path] = node;
-                        node->_type = 8;
-
                         for(size_t i = 0; i < node->_count; ++i)
                         {
                             uchar* f = (uchar*)&node->_data->first(node->_count, i);
@@ -1253,11 +1247,15 @@ namespace ptrie {
                     }
                     else if(on_heap > 0)
                     {
-                        return true;
-                        size_t nbucketsize = node->_totsize + node->_count;
+                        size_t nbucketsize = 0;
                         if(on_heap >= HEAPBOUND)
                         {
                             nbucketsize = node->_count * sizeof(size_t);
+                        }
+                        else//if(on_heap < HEAPBOUND)
+                        {
+                            assert(on_heap >= 0);
+                            nbucketsize = on_heap * node->_count;
                         }
 
                         inject_byte(node, parent->_path, nbucketsize, [on_heap](size_t)
@@ -1359,6 +1357,7 @@ namespace ptrie {
 
                 if(child->_type == 255)
                 {
+                    if(child != parent) return true;
                     for(size_t i = from; i <= to; ++i)
                     {
                         if( parent->_children[i] != child &&

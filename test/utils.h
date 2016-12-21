@@ -48,12 +48,14 @@ void try_insert(auto& trie, auto generator, size_t N)
 
 };
 
-ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize)
+ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t))
 {
+    assert(minsize >= sizeof(size_t));
     srand(seed);
     // pick size between 0 and maxsize
-    size_t size = sizeof(size_t) +
-                  rand() % (maxsize - sizeof(size_t));
+    size_t size = minsize != maxsize ?
+                  minsize + rand() % (maxsize - minsize) :
+                  minsize;
 
     binarywrapper_t data(size * 8);
     // fill in random data
