@@ -63,7 +63,7 @@ namespace ptrie {
 #define PTRIEDEF HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, T, I
 
     template<
-    uint16_t HEAPBOUND = 128,
+    uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 129,
     size_t ALLOCSIZE = (1024 * 64),
     size_t FWDALLOC = 256,

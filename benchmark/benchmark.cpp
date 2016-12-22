@@ -25,6 +25,7 @@
 #include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie_stable.h>
+#include <chrono>
 #include "MurmurHash2.h"
 
 using namespace ptrie;
@@ -60,11 +61,12 @@ ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = s
     return data;
 }
 
-void print_settings(const char* type, size_t elements, size_t seed, size_t bytes, double deletes)
+void print_settings(const char* type, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
 {
     std::cout << "Using " << type << ", inserting " << elements << " items of "
               << bytes << " bytes produced via seed " << seed << ". Of those "
-              << (deletes*100.0) << "% will be deleted at random" << std::endl;
+              << (deletes*100.0) << "% will be deleted at random, and for each insert, on average " <<
+              read_rate << " extra reads will occur" << std::endl;
 }
 
 struct wrapper_t
@@ -89,18 +91,38 @@ struct wrapper_t
 
 };
 
-void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double deletes)
+void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
 {
     std::default_random_engine generator(seed);
     std::uniform_real_distribution<double> dist;
     std::uniform_int_distribution<int>  rem(0, elements);
 
+    std::default_random_engine read_generator(seed);
+    std::normal_distribution<double> read_dist(read_rate, read_rate / 2.0);
+    std::uniform_int_distribution<int> read_el(0, elements);
+
+
     wrapper_t w;
+    auto start = std::chrono::system_clock::now();
     for(size_t i = 0; i < elements; ++i)
     {
         w.data = rand_data(seed + i, bytes, bytes);
         w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
         set.insert(w);
+
+        if(read_rate > 0.0)
+        {
+            int reads = std::round(read_dist(read_generator));
+            for(int r = 0; r < reads; ++r)
+            {
+                size_t el = read_el(read_generator);
+                w.data = rand_data(seed + el, bytes, bytes);
+                w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
+                set.count(w);
+                w.data.release();
+            }
+        }
+
 /*        if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
@@ -112,20 +134,40 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
             w.data.release();
         }*/
     }
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "COMPLETED IN " << (0.001*elapsed.count()) << " SECONDS " << std::endl;
     w.data = binarywrapper_t();
 }
 
-void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, double deletes)
+void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
 {
-    std::default_random_engine generator(seed);
-    std::uniform_real_distribution<double> dist;
-    std::uniform_int_distribution<int>  rem(0, elements);
+    std::default_random_engine del_generator(seed);
+    std::uniform_real_distribution<double> del_dist;
+    std::uniform_int_distribution<int>  del_el(0, elements);
+
+    std::default_random_engine read_generator(seed);
+    std::normal_distribution<double> read_dist(read_rate, read_rate / 2.0);
+    std::uniform_int_distribution<int> read_el(0, elements);
+    auto start = std::chrono::system_clock::now();
 
     for(size_t i = 0; i < elements; ++i)
     {
         auto data = rand_data(seed + i, bytes, bytes);
         set.insert(data);
         data.release();
+
+        if(read_rate > 0.0)
+        {
+            int reads = std::round(read_dist(read_generator));
+            for(int r = 0; r < reads; ++r)
+            {
+                size_t el = read_el(read_generator);
+                data = rand_data(seed + el, bytes, bytes);
+                set.exists(data);
+                data.release();
+            }
+        }
         /*if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
@@ -134,6 +176,9 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, dou
             torem.release();
         }*/
     }
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "COMPLETED IN " << (0.001*elapsed.count()) << " SECONDS " << std::endl;
 }
 
 
@@ -162,9 +207,9 @@ struct equal_o
 
 int main(int argc, const char** argv)
 {
-    if(argc < 3 || argc > 6)
+    if(argc < 3 || argc > 7)
     {
-        std::cout << "usage : <ptrie/std/sparse/dense> <number elements> <?seed> <?number of bytes> <?delete ratio>" << std::endl;
+        std::cout << "usage : <ptrie/std/sparse/dense> <number elements> <?seed> <?number of bytes> <?delete ratio> <?read rate>" << std::endl;
         exit(-1);
     }
 
@@ -173,38 +218,40 @@ int main(int argc, const char** argv)
     size_t seed = 0;
     size_t bytes = 16;
     double deletes = 0.0;
+    double read_rate = 0.0;
 
     read_arg(argv[2], elements, "Error in <number of elements>", "%zu");
     if(argc > 3) read_arg(argv[3], seed, "Error in <seed>", "%zu");
     if(argc > 4) read_arg(argv[4], bytes, "Error in <bytes>", "%zu");
-    if(argc > 5) read_arg(argv[5], deletes, "Error in <deletes>", "%lf");
+    if(argc > 5) read_arg(argv[5], deletes, "Error in <delete ratio>", "%lf");
+    if(argc > 6) read_arg(argv[6], read_rate, "Error in <read rate>", "%lf");
 
     if(strcmp(type, "ptrie") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes);
+        print_settings(type, elements, seed, bytes, deletes, read_rate);
         set<> set;
-        set_insert_ptrie(set, elements, seed, bytes, deletes);
+        set_insert_ptrie(set, elements, seed, bytes, deletes, read_rate);
     }
     else if (strcmp(type, "std") == 0) {
-        print_settings(type, elements, seed, bytes, deletes);
+        print_settings(type, elements, seed, bytes, deletes, read_rate);
         std::set<wrapper_t> set;
-        set_insert(set, elements, seed, bytes, deletes);
+        set_insert(set, elements, seed, bytes, deletes, read_rate);
     }
     else if(strcmp(type, "tbb") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes);
+        print_settings(type, elements, seed, bytes, deletes, read_rate);
         tbb::concurrent_unordered_set<wrapper_t, hasher_o, equal_o> set;
-        set_insert(set, elements, seed, bytes, deletes);
-
+        set_insert(set, elements, seed, bytes, deletes, read_rate);
     }
     else if(strcmp(type, "sparse") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes);
+        print_settings(type, elements, seed, bytes, deletes, read_rate);
         google::sparse_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
-        set_insert(set, elements, seed, bytes, deletes);
+        set_insert(set, elements, seed, bytes, deletes, read_rate);
     }
     else if(strcmp(type, "dense") == 0)
     {
+        print_settings(type, elements, seed, bytes, deletes, read_rate);
         google::dense_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
         wrapper_t empty;
         empty._hash = 0;
@@ -212,12 +259,11 @@ int main(int argc, const char** argv)
         del._hash = std::numeric_limits<uint64_t>::max();
         set.set_empty_key(empty);
         if(deletes > 0.0) set.set_deleted_key(del);
-        set_insert(set, elements, seed, bytes, deletes);
-        print_settings(type, elements, seed, bytes, deletes);
+        set_insert(set, elements, seed, bytes, deletes, read_rate);
     }
     else
     {
-        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, std, sparse, dense" << std::endl;
+        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, std, sparse, dense, tbb" << std::endl;
         exit(-1);
     }
 
