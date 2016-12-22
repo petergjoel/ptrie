@@ -28,6 +28,7 @@
 #include <limits>
 #include <stdlib.h>
 #include <malloc.h>
+#include <stdint.h>
 
 #ifndef BINARYWRAPPER_H
 #define	BINARYWRAPPER_H
