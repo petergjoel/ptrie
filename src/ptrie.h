@@ -25,7 +25,7 @@
 #ifndef PTRIE_H
 #define PTRIE_H
 
-
+#include <stdint.h>
 #include <assert.h>
 #include <limits>
 #include <stack>
