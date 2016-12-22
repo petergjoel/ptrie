@@ -19,13 +19,13 @@
 #include <iostream>
 #include <ptrie.h>
 #include <stdlib.h>
-#include <set>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
 #include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie_stable.h>
 #include <chrono>
+#include <unordered_set>
 #include "MurmurHash2.h"
 
 using namespace ptrie;
@@ -234,7 +234,7 @@ int main(int argc, const char** argv)
     }
     else if (strcmp(type, "std") == 0) {
         print_settings(type, elements, seed, bytes, deletes, read_rate);
-        std::set<wrapper_t> set;
+        std::unordered_set<wrapper_t, hasher_o, equal_o> set;
         set_insert(set, elements, seed, bytes, deletes, read_rate);
     }
     else if(strcmp(type, "tbb") == 0)
