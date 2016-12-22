@@ -22,6 +22,7 @@
 #include <set>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
+#include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie_stable.h>
 #include "MurmurHash2.h"
@@ -100,7 +101,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
         w.data = rand_data(seed + i, bytes, bytes);
         w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
         set.insert(w);
-        if(dist(generator) < deletes)
+/*        if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
             w.data = rand_data(seed + el, bytes, bytes);
@@ -109,7 +110,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
             if(it != set.end())
                 set.erase(it);
             w.data.release();
-        }
+        }*/
     }
     w.data = binarywrapper_t();
 }
@@ -125,13 +126,13 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, dou
         auto data = rand_data(seed + i, bytes, bytes);
         set.insert(data);
         data.release();
-        if(dist(generator) < deletes)
+        /*if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
             auto torem = rand_data(seed + el, bytes, bytes);
             set.erase(torem);
             torem.release();
-        }
+        }*/
     }
 }
 
@@ -181,14 +182,20 @@ int main(int argc, const char** argv)
     if(strcmp(type, "ptrie") == 0)
     {
         print_settings(type, elements, seed, bytes, deletes);
-        set_stable<> set;
+        set<> set;
         set_insert_ptrie(set, elements, seed, bytes, deletes);
     }
-    else if (strcmp(type, "std") == 0)
-    {
+    else if (strcmp(type, "std") == 0) {
         print_settings(type, elements, seed, bytes, deletes);
         std::set<wrapper_t> set;
         set_insert(set, elements, seed, bytes, deletes);
+    }
+    else if(strcmp(type, "tbb") == 0)
+    {
+        print_settings(type, elements, seed, bytes, deletes);
+        tbb::concurrent_unordered_set<wrapper_t, hasher_o, equal_o> set;
+        set_insert(set, elements, seed, bytes, deletes);
+
     }
     else if(strcmp(type, "sparse") == 0)
     {
