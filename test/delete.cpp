@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
-    const int max = 128000;
+    const int max = 8000;
     set_stable<sizeof(size_t)+1,4> set;
     try_insert(set,
               [](size_t i){
