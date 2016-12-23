@@ -180,23 +180,34 @@ namespace ptrie {
 
     template<PTRIETPL>
     set<PTRIEDEF>::~set() {
-/*
-        size_t n = _nodes->size();
-        for (size_t i = 0; i < n; ++i) {
-            node_t& n = _nodes->operator[](i);
-            for (size_t i = 0; i < n._count; ++i) {
-                // TODO: Cleanup properly here - if things are on the heap!
-                if(n._data->length(i) >= HEAPBOUND)
+        std::stack<fwdnode_t*> stack;
+        stack.push(_root);
+        while(!stack.empty())
+        {
+            fwdnode_t* next = stack.top();
+            stack.pop();
+            for(size_t i = 0; i < 256; ++i)
+            {
+                base_t* child = next->_children[i];
+                if(child != next)
                 {
-                    uchar* ptr = *((uchar**)(n._data->data(n._count, i)));
-                    free(ptr);
+                    if(i > 0 && child == next->_children[i-1]) continue;
+                    if(child->_type == 255)
+                    {
+                        stack.push((fwdnode_t*)child);
+                    }
+                    else
+                    {
+                        node_t* node = (node_t*) child;
+                        // TODO: we should delete data here also!
+                        free(node->_data);
+                        delete node;
+                    }
                 }
             }
-            free(n._data);
+            delete next;
         }
-        delete _nodes;
-        delete _fwd;*/
-        delete _entries;
+       delete _entries;
     }
 
     template<PTRIETPL>
@@ -1108,7 +1119,7 @@ namespace ptrie {
         {
             if(node->_count == 0)
             {
-                parent->_children[node->_path] = parent;
+                for(size_t i = 0; i < 256; ++i) parent->_children[i] = parent;
                 delete node;
                 do {
                     if (parent != this->_root) {
@@ -1464,14 +1475,17 @@ namespace ptrie {
             }
             free(node->_data);
             node->_data = nbucket;
+            node->_count = nbucketcount;
+            node->_totsize -= size;
+
         }
         else
         {
             free(node->_data);
             node->_data = NULL;
+            node->_count = 0;
+            node->_totsize = 0;
         }
-        node->_count = nbucketcount;
-        node->_totsize -= size;
         if(nbucketcount <= SPLITBOUND / 3)
         {
             merge_down(parent, node, on_heap);
