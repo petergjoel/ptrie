@@ -74,8 +74,7 @@ namespace ptrie {
             bool found = false;
 #endif
             typename pt::entry_t& ent = this->_entries->operator[](index);
-            if(sizeof(I) == sizeof(size_t)) par = (typename pt::fwdnode_t*)ent.node;
-            else par = &this->_fwd->operator [](ent.node);
+            par = (typename pt::fwdnode_t*)ent.node;
             node = (typename pt::node_t*)par->_children[ent.path];
             typename pt::bucket_t* bckt = node->_data;
             I* ents = bckt->entries(node->_count, true);

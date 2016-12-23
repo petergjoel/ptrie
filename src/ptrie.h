@@ -128,7 +128,6 @@ namespace ptrie {
         } __attribute__((packed));
 
         struct fwdnode_t : public base_t {
-            I _index;
             base_t* _children[256];
             fwdnode_t* _parent;
 
@@ -138,14 +137,10 @@ namespace ptrie {
         } __attribute__((packed));
 
         linked_bucket_t<entry_t, ALLOCSIZE>* _entries = NULL;
-        linked_bucket_t<node_t, ALLOCSIZE>* _nodes = NULL; // small, so alloc a lot
-        linked_bucket_t<fwdnode_t, FWDALLOC>* _fwd = NULL; // big, so assume we do not need a lot of these!
 
         fwdnode_t* _root;
     protected:
         node_t* new_node();
-        void pop_node();
-
         fwdnode_t* new_fwd();
 
         base_t* fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte);
@@ -176,38 +171,33 @@ namespace ptrie {
 
     template<PTRIETPL>
     set<PTRIEDEF>::~set() {
-
+/*
         size_t n = _nodes->size();
         for (size_t i = 0; i < n; ++i) {
             node_t& n = _nodes->operator[](i);
             for (size_t i = 0; i < n._count; ++i) {
                 // TODO: Cleanup properly here - if things are on the heap!
-                /*if(n._data->length(i) >= HEAPBOUND)
+                if(n._data->length(i) >= HEAPBOUND)
                 {
                     uchar* ptr = *((uchar**)(n._data->data(n._count, i)));
                     free(ptr);
-                }*/
+                }
             }
             free(n._data);
         }
         delete _nodes;
-        delete _fwd;
+        delete _fwd;*/
         delete _entries;
     }
 
     template<PTRIETPL>
     void set<PTRIEDEF>::init()
     {
-        delete _nodes;
-        delete _fwd;
         delete _entries;
         if(_entries != NULL)
         {
             _entries = new linked_bucket_t<entry_t, ALLOCSIZE>(1);
         }
-
-        _nodes = new linked_bucket_t<node_t, ALLOCSIZE>(1);
-        _fwd = new linked_bucket_t<fwdnode_t, FWDALLOC>(1);
 
         _root = new_fwd();
         _root->_parent = NULL;
@@ -228,25 +218,13 @@ namespace ptrie {
     template<PTRIETPL>
     typename set<PTRIEDEF>::node_t*
     set<PTRIEDEF>::new_node() {
-        size_t n = _nodes->next(0);
-        node_t* no = &_nodes->operator[](n);
-        //        std::cout << "NEW NODE >> " << no << std::endl;
-        return no;
-    }
-
-    template<PTRIETPL>
-    void
-    set<PTRIEDEF>::pop_node() {
-        _nodes->pop_back(0);
+        return new node_t;
     }
 
     template<PTRIETPL>
     typename set<PTRIEDEF>::fwdnode_t*
     set<PTRIEDEF>::new_fwd() {
-        size_t n = _fwd->next(0);
-        fwdnode_t* node = &_fwd->operator[](n);
-        node->_index = n;
-        return node;
+        return new fwdnode_t;
     }
 
     template<PTRIETPL>
@@ -592,8 +570,7 @@ namespace ptrie {
             I* ents = bucket->entries(SPLITBOUND, true);
             for (size_t i = 0; i < SPLITBOUND; ++i) {
                 entry_t& ent = _entries->operator[](ents[i]);
-                if(sizeof(I) == sizeof(size_t)) ent.node = (size_t)fwd_n;
-                else ent.node = fwd_n->_index;
+                ent.node = (size_t)fwd_n;
                 ent.path = (bucket->first(SPLITBOUND, i));
             }
         }
@@ -605,7 +582,7 @@ namespace ptrie {
             //            std::cout << "SPLIT ALL HIGH" << std::endl;
             low_n->_data = NULL;
             for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = fwd_n;
-            pop_node();
+            delete low_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
@@ -619,7 +596,7 @@ namespace ptrie {
             node->_count = low_n->_count;
             node->_totsize = low_n->_totsize;
             node->_type = low_n->_type;
-            pop_node();
+            delete low_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         } else {
             for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = low_n;
@@ -746,7 +723,7 @@ namespace ptrie {
             node->_type = h_node->_type;
 
 
-            pop_node();
+            delete h_node;
             split_node(node, jumppar, locked, bsize, byte);
         }
         else if (h_node->_count == 0) // only low node has data
@@ -758,7 +735,7 @@ namespace ptrie {
                 jumppar->_children[i] = jumppar;
             }
 
-            pop_node();
+            delete h_node;
             node->_data = old;
             split_node(node, jumppar, locked, bsize, byte);
         } else {
@@ -944,8 +921,7 @@ namespace ptrie {
 
             entry = nbucket->entries(nbucketcount, true)[b_index] = _entries->next(0);
             entry_t& ent = _entries->operator[](entry);
-            if(sizeof(I) == sizeof(size_t)) ent.node = (size_t)fwd;
-            else ent.node = fwd->_index;
+            ent.node = (size_t)fwd;
             ent.path = (nbucket->first(nbucketcount, b_index) >> 8);
         }
 
