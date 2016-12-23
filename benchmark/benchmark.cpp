@@ -40,7 +40,7 @@ void read_arg(const char* data, auto& dest, const char* error, const char* type)
 
 }
 
-ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t))
+ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t), size_t mv = 256)
 {
     assert(minsize >= sizeof(size_t));
     srand(seed);
@@ -52,7 +52,7 @@ ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = s
     binarywrapper_t data(size * 8);
     // fill in random data
     for (size_t j = 0; j < size; ++j) {
-        data.raw()[j] = (uchar) rand();
+        data.raw()[j] = (uchar) (rand() % mv);
     }
     // make sure everything is unique
     for (size_t j = 1; j <= sizeof(size_t); ++j) {
@@ -61,12 +61,12 @@ ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = s
     return data;
 }
 
-void print_settings(const char* type, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
+void print_settings(const char* type, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
 {
     std::cout << "Using " << type << ", inserting " << elements << " items of "
               << bytes << " bytes produced via seed " << seed << ". Of those "
               << (deletes*100.0) << "% will be deleted at random, and for each insert, on average " <<
-              read_rate << " extra reads will occur" << std::endl;
+              read_rate << " extra reads will occur" << ". All bytes in rand data are mod " << mv << std::endl;
 }
 
 struct wrapper_t
@@ -91,7 +91,7 @@ struct wrapper_t
 
 };
 
-void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
+void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
 {
     std::default_random_engine generator(seed);
     std::uniform_real_distribution<double> dist;
@@ -106,7 +106,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
     auto start = std::chrono::system_clock::now();
     for(size_t i = 0; i < elements; ++i)
     {
-        w.data = rand_data(seed + i, bytes, bytes);
+        w.data = rand_data(seed + i, bytes, bytes, mv);
         w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
         if(w._hash == 0) w._hash += 1;
         else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
@@ -118,7 +118,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
             for(int r = 0; r < reads; ++r)
             {
                 size_t el = read_el(read_generator);
-                w.data = rand_data(seed + el, bytes, bytes);
+                w.data = rand_data(seed + el, bytes, bytes, mv);
                 w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
                 if(w._hash == 0) w._hash += 1;
                 else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
@@ -130,7 +130,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
 /*        if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
-            w.data = rand_data(seed + el, bytes, bytes);
+            w.data = rand_data(seed + el, bytes, bytes, mv);
             w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
             if(w._hash == 0) w._hash += 1;
             else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
@@ -146,7 +146,7 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
     w.data = binarywrapper_t();
 }
 
-void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate)
+void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
 {
     std::default_random_engine del_generator(seed);
     std::uniform_real_distribution<double> del_dist;
@@ -169,7 +169,7 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, dou
             for(int r = 0; r < reads; ++r)
             {
                 size_t el = read_el(read_generator);
-                data = rand_data(seed + el, bytes, bytes);
+                data = rand_data(seed + el, bytes, bytes, mv);
                 set.exists(data);
                 data.release();
             }
@@ -177,7 +177,7 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, dou
         /*if(dist(generator) < deletes)
         {
             size_t el = rem(generator) % elements;
-            auto torem = rand_data(seed + el, bytes, bytes);
+            auto torem = rand_data(seed + el, bytes, bytes, mv);
             set.erase(torem);
             torem.release();
         }*/
@@ -215,7 +215,7 @@ int main(int argc, const char** argv)
 {
     if(argc < 3 || argc > 7)
     {
-        std::cout << "usage : <ptrie/std/sparse/dense> <number elements> <?seed> <?number of bytes> <?delete ratio> <?read rate>" << std::endl;
+        std::cout << "usage : <ptrie/std/sparse/dense> <number elements> <?seed> <?number of bytes> <?delete ratio> <?read rate> <?max byte val>" << std::endl;
         exit(-1);
     }
 
@@ -225,39 +225,41 @@ int main(int argc, const char** argv)
     size_t bytes = 16;
     double deletes = 0.0;
     double read_rate = 0.0;
+    size_t maxval = 256;
 
     read_arg(argv[2], elements, "Error in <number of elements>", "%zu");
     if(argc > 3) read_arg(argv[3], seed, "Error in <seed>", "%zu");
     if(argc > 4) read_arg(argv[4], bytes, "Error in <bytes>", "%zu");
     if(argc > 5) read_arg(argv[5], deletes, "Error in <delete ratio>", "%lf");
     if(argc > 6) read_arg(argv[6], read_rate, "Error in <read rate>", "%lf");
+    if(argc > 7) read_arg(argv[7], maxval, "Error in <max byte val>", "%zu");
 
     if(strcmp(type, "ptrie") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes, read_rate);
+        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         set<> set;
-        set_insert_ptrie(set, elements, seed, bytes, deletes, read_rate);
+        set_insert_ptrie(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else if (strcmp(type, "std") == 0) {
-        print_settings(type, elements, seed, bytes, deletes, read_rate);
+        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         std::unordered_set<wrapper_t, hasher_o, equal_o> set;
-        set_insert(set, elements, seed, bytes, deletes, read_rate);
+        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else if(strcmp(type, "tbb") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes, read_rate);
+        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         tbb::concurrent_unordered_set<wrapper_t, hasher_o, equal_o> set;
-        set_insert(set, elements, seed, bytes, deletes, read_rate);
+        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else if(strcmp(type, "sparse") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes, read_rate);
+        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         google::sparse_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
-        set_insert(set, elements, seed, bytes, deletes, read_rate);
+        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else if(strcmp(type, "dense") == 0)
     {
-        print_settings(type, elements, seed, bytes, deletes, read_rate);
+        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         google::dense_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
         wrapper_t empty;
         empty._hash = 0;
@@ -265,7 +267,7 @@ int main(int argc, const char** argv)
         del._hash = std::numeric_limits<uint64_t>::max();
         set.set_empty_key(empty);
         if(deletes > 0.0) set.set_deleted_key(del);
-        set_insert(set, elements, seed, bytes, deletes, read_rate);
+        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else
     {
