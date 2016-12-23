@@ -108,6 +108,8 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
     {
         w.data = rand_data(seed + i, bytes, bytes);
         w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
+        if(w._hash == 0) w._hash += 1;
+        else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
         set.insert(w);
 
         if(read_rate > 0.0)
@@ -118,6 +120,8 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
                 size_t el = read_el(read_generator);
                 w.data = rand_data(seed + el, bytes, bytes);
                 w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
+                if(w._hash == 0) w._hash += 1;
+                else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
                 set.count(w);
                 w.data.release();
             }
@@ -128,6 +132,8 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
             size_t el = rem(generator) % elements;
             w.data = rand_data(seed + el, bytes, bytes);
             w._hash = MurmurHash64A(w.data.raw(), w.data.size(), seed);
+            if(w._hash == 0) w._hash += 1;
+            else if (w._hash == std::numeric_limits<uint64_t>::max()) w._hash -= 1;
             auto it = set.find(w);
             if(it != set.end())
                 set.erase(it);
