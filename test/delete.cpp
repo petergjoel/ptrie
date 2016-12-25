@@ -24,7 +24,6 @@
 using namespace ptrie;
 using namespace std;
 
-/*
 BOOST_AUTO_TEST_CASE(InsertDeleteByte)
 {
     set_stable<> set;
@@ -203,7 +202,6 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
         data.release();
     }
 }
-*/
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
