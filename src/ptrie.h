@@ -1530,7 +1530,7 @@ namespace ptrie {
     bool
     set<PTRIEDEF>::erase(const uchar *data, size_t length)
     {
-        binarywrapper_t b(data, length*8);
+        binarywrapper_t b((uchar*)data, length*8);
         return erase(b);
     }
 

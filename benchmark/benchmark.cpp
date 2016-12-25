@@ -27,18 +27,8 @@
 #include <chrono>
 #include <unordered_set>
 #include "MurmurHash2.h"
-
+#include "utils.h"
 using namespace ptrie;
-
-void read_arg(const char* data, auto& dest, const char* error, const char* type)
-{
-    if(sscanf(data, type, &dest) != 1)
-    {
-        std::cerr << error << std::endl;
-        exit(-1);
-    }
-
-}
 
 ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t), size_t mv = 256)
 {
@@ -61,13 +51,6 @@ ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = s
     return data;
 }
 
-void print_settings(const char* type, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
-{
-    std::cout << "Using " << type << ", inserting " << elements << " items of "
-              << bytes << " bytes produced via seed " << seed << ". Of those "
-              << (deletes*100.0) << "% will be deleted at random, and for each insert, on average " <<
-              read_rate << " extra reads will occur" << ". All bytes in rand data are mod " << mv << std::endl;
-}
 
 struct wrapper_t
 {
@@ -159,7 +142,7 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, dou
 
     for(size_t i = 0; i < elements; ++i)
     {
-        auto data = rand_data(seed + i, bytes, bytes);
+        auto data = rand_data(seed + i, bytes, bytes, mv);
         set.insert(data);
         data.release();
 
@@ -213,7 +196,7 @@ struct equal_o
 
 int main(int argc, const char** argv)
 {
-    if(argc < 3 || argc > 7)
+    if(argc < 3 || argc > 8)
     {
         std::cout << "usage : <ptrie/std/sparse/dense> <number elements> <?seed> <?number of bytes> <?delete ratio> <?read rate> <?max byte val>" << std::endl;
         exit(-1);
