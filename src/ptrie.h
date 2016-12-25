@@ -640,7 +640,7 @@ namespace ptrie {
             {
                 split_node(low_n, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
             }
-            else if(node->_count >= SPLITBOUND)
+            if(node->_count >= SPLITBOUND)
             {
                  split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
             }
@@ -804,6 +804,14 @@ namespace ptrie {
             }
 
             free(old);
+            if(node->_count >= SPLITBOUND)
+            {
+                split_node(node, jumppar, locked, bsize, byte);
+            }
+            if(h_node->_count >= SPLITBOUND)
+            {
+                split_node(h_node, jumppar, locked, bsize, byte);
+            }
         }
     }
 
