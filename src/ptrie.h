@@ -404,7 +404,7 @@ namespace ptrie {
         const uint16_t bucketsize = node->_count;
         if(bucketsize < (sizeof(fwdnode_t) / sizeof(size_t))) return;
         const bool hasent = _entries != NULL;
-        node_t* low_n = new_node();
+        node_t lown;
         fwdnode_t* fwd_n = new_fwd();
 
         //        std::cerr << "SplitFWD " << (locked ? locked : node) << " OP : " << jumppar << " NP : " << fwd_n  << " LOW : " << low_n << std::endl;
@@ -413,9 +413,9 @@ namespace ptrie {
         fwd_n->_type = 255;
         fwd_n->_path = node->_path;
 
-        low_n->_path = 0;
+        lown._path = 0;
         node->_path = binarywrapper_t::_masks[0];
-        low_n->_type = 1;
+        lown._type = 1;
         node->_type = 1;
 
 
@@ -423,7 +423,7 @@ namespace ptrie {
 
         (*jumppar)[fwd_n->_path] = fwd_n;
 
-        low_n->_data = NULL;
+        lown._data = NULL;
 
         int lcnt = 0;
         int hcnt = 0;
@@ -480,11 +480,11 @@ namespace ptrie {
         else node->_data = (bucket_t*) malloc(node->_totsize + 
                 bucket_t::overhead(node->_count, hasent));
 
-        low_n->_totsize = lsize > 0 ? lsize : 0;
-        low_n->_count = lcnt;
-        if (lcnt == 0) low_n->_data = NULL;
-        else low_n->_data = (bucket_t*) malloc(low_n->_totsize +
-                bucket_t::overhead(low_n->_count, hasent));
+        lown._totsize = lsize > 0 ? lsize : 0;
+        lown._count = lcnt;
+        if (lcnt == 0) lown._data = NULL;
+        else lown._data = (bucket_t*) malloc(lown._totsize +
+                bucket_t::overhead(lown._count, hasent));
 
         // copy values
         int lbcnt = 0;
@@ -492,11 +492,11 @@ namespace ptrie {
         bcnt = 0;
 #define LLENGTH(x) lengths[x] - 1
         for (int i = 0; i < bucketsize; ++i) {
-            if (i < low_n->_count) {
-                low_n->_data->first(low_n->_count, i) = (bucket->first(bucketsize, i) << 8);
+            if (i < lown._count) {
+                lown._data->first(lown._count, i) = (bucket->first(bucketsize, i) << 8);
                 if (lengths[i] > 0) {
-                    //                    low_n->_data->length(i) = LLENGTH(i);
-                    uchar* dest = &(low_n->_data->data(low_n->_count, hasent)[lbcnt]);
+                    //                    lown._data->length(i) = LLENGTH(i);
+                    uchar* dest = &(lown._data->data(lown._count, hasent)[lbcnt]);
                     if (LLENGTH(i) >= HEAPBOUND) {
                         uchar* data = (uchar*) malloc(LLENGTH(i));
                         memcpy(dest, &data, sizeof (uchar*));
@@ -511,7 +511,7 @@ namespace ptrie {
                         src = &(bucket->data(bucketsize, hasent)[bcnt]);
                     }
 
-                    uchar* f = (uchar*)&(low_n->_data->first(low_n->_count, i));
+                    uchar* f = (uchar*)&(lown._data->first(lown._count, i));
                     f[0] = src[0];
 
                     memcpy(dest,
@@ -521,7 +521,7 @@ namespace ptrie {
                     if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
                         if (LLENGTH(i) >= HEAPBOUND) {
-                            uchar* tmp = *((uchar**)&(low_n->_data->data(low_n->_count, hasent)[lbcnt]));
+                            uchar* tmp = *((uchar**)&(lown._data->data(lown._count, hasent)[lbcnt]));
                             assert(tmp == dest);
                             assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
                         }
@@ -533,12 +533,12 @@ namespace ptrie {
                 }
 
                 //                std::cout << bucket->first(bucketsize, i) << std::endl;
-                //                std::cout << i << " NFIRST " << low_n->_data->first(low_n->_count, i) << std::endl;
+                //                std::cout << i << " NFIRST " << lown._data->first(lown._count, i) << std::endl;
 
-                //                assert(low_n->_data->length(i) == 0 && lengths[i] <= 1 ||
-                //                        lengths[i] - 1 == low_n->_data->length(i));
+                //                assert(lown._data->length(i) == 0 && lengths[i] <= 1 ||
+                //                        lengths[i] - 1 == lown._data->length(i));
             } else {
-                int j = i - low_n->_count;
+                int j = i - lown._count;
                 node->_data->first(node->_count, j) = (bucket->first(bucketsize, i) << 8);
                 //                node->_data->length(j) = lengths[i] - 1;
                 if (lengths[i] > 0) {
@@ -602,37 +602,41 @@ namespace ptrie {
                 memcpy(node->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
             free(bucket);
             //            std::cout << "SPLIT ALL HIGH" << std::endl;
-            low_n->_data = NULL;
+            lown._data = NULL;
             for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = fwd_n;
-            delete low_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
             if (hasent)
-                memcpy(low_n->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
+                memcpy(lown._data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
             for (size_t i = 128; i < 256; ++i) (*fwd_n)[i] = fwd_n;
             free(bucket);
             //            std::cout << "SPLIT ALL LOW" << std::endl;
-            node->_data = low_n->_data;
-            node->_path = low_n->_path;
-            node->_count = low_n->_count;
-            node->_totsize = low_n->_totsize;
-            node->_type = low_n->_type;
-            delete low_n;
+            node->_data = lown._data;
+            node->_path = lown._path;
+            node->_count = lown._count;
+            node->_totsize = lown._totsize;
+            node->_type = lown._type;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         } else {
+            node_t* low_n = new_node();
+            low_n->_data = lown._data;
+            low_n->_totsize = lown._totsize;
+            low_n->_count = lown._count;
+            low_n->_path = lown._path;
+            low_n->_type = lown._type;
             for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = low_n;
             if (hasent) {
                 // We are stopping splitting here, so correct entries if needed
                 I* ents = bucket->entries(bucketsize, true);
 
                 for (size_t i = 0; i < bucketsize; ++i) {
-                    if (i < low_n->_count) low_n->_data->entries(low_n->_count, true)[i] = ents[i];
-                    else node->_data->entries(node->_count, true)[i - low_n->_count] = ents[i];
+                    if (i < lown._count) lown._data->entries(lown._count, true)[i] = ents[i];
+                    else node->_data->entries(node->_count, true)[i - lown._count] = ents[i];
                 }
             }
             free(bucket);
-            if(low_n->_count >= SPLITBOUND)
+            if(lown._count >= SPLITBOUND)
             {
                 split_node(low_n, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
             }
@@ -640,7 +644,7 @@ namespace ptrie {
             {
                  split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
             }
-            //            std::cout << "SPLIT Moving LOW " << low_n->_count << " TO " << low_n << std::endl;
+            //            std::cout << "SPLIT Moving LOW " << lown._count << " TO " << low_n << std::endl;
             //            std::cout << "SPLIT Moving HIGH " << node->_count << " TO " << node << std::endl;
 
         }
@@ -659,18 +663,16 @@ namespace ptrie {
 
         const uint16_t bucketsize = node->_count;
 
-        node_t* h_node = new_node();
-
-
+        node_t hnode;
         //        std::cerr << "Split " << (locked ? locked : node) << " high : " << h_node << std::endl;
 
-        h_node->_type = node->_type + 1;
-        assert(h_node->_type <= 8);
+        hnode._type = node->_type + 1;
+        assert(hnode._type <= 8);
         assert(node->_type <= 8);
 
         //assert(n_node->_lck == 0);
         assert((node->_path & binarywrapper_t::_masks[node->_type]) == 0);
-        h_node->_path = node->_path | binarywrapper_t::_masks[node->_type];
+        hnode._path = node->_path | binarywrapper_t::_masks[node->_type];
 
         // because we are only really shifting around bits when enc_pos % 8 = 0
         // then we need to find out which bit of the first 8 we are
@@ -722,12 +724,12 @@ namespace ptrie {
 
         bucket_t* old = node->_data;
         // copy over values
-        h_node->_count = hcnt;
-        h_node->_totsize = node->_totsize - lsize;
+        hnode._count = hcnt;
+        hnode._totsize = node->_totsize - lsize;
         node->_count = lcnt;
         node->_totsize = lsize;
 
-        size_t dist = (h_node->_path - node->_path);
+        size_t dist = (hnode._path - node->_path);
         assert(dist > 0);
 
         node->_type += 1;
@@ -737,37 +739,41 @@ namespace ptrie {
         if (node->_count == 0) // only high node has data
         {
             //            std::cout << "ALL HIGH" << std::endl;
-            for(size_t i = node->_path; i < h_node->_path; ++i)
+            for(size_t i = node->_path; i < hnode._path; ++i)
             {
                 assert(jumppar->_children[i] == node);
                 jumppar->_children[i] = jumppar;
             }
 
-            node->_path = h_node->_path;
-            node->_count = h_node->_count;
+            node->_path = hnode._path;
+            node->_count = hnode._count;
             node->_data = old;
-            node->_totsize = h_node->_totsize;
-            node->_type = h_node->_type;
+            node->_totsize = hnode._totsize;
+            node->_type = hnode._type;
 
 
-            delete h_node;
             split_node(node, jumppar, locked, bsize, byte);
         }
-        else if (h_node->_count == 0) // only low node has data
+        else if (hnode._count == 0) // only low node has data
         {
             //            std::cout << "ALL LOW" << std::endl;
-            for(size_t i = h_node->_path; i < h_node->_path + dist; ++i)
+            for(size_t i = hnode._path; i < hnode._path + dist; ++i)
             {
                 assert(jumppar->_children[i] == node);
                 jumppar->_children[i] = jumppar;
             }
 
-            delete h_node;
             node->_data = old;
             split_node(node, jumppar, locked, bsize, byte);
         } else {
+            node_t* h_node = new_node();
+            h_node->_count = hnode._count;
+            h_node->_type = hnode._type;
+            h_node->_path = hnode._path;
+            h_node->_totsize = hnode._totsize;
+            h_node->_data = hnode._data;
 
-            for(size_t i = h_node->_path; i < h_node->_path + dist; ++i)
+            for(size_t i = hnode._path; i < hnode._path + dist; ++i)
             {
                 assert(jumppar->_children[i] == node);
                 jumppar->_children[i] = h_node;
