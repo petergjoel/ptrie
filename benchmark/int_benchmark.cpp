@@ -123,7 +123,7 @@ void set_insert_ptrie(auto& set, size_t elements, size_t seed, double deletes, d
         if(del_dist(del_generator) < deletes)
         {
 
-            std::uniform_int_distribution<size_t>  del_el(1, elements);
+            std::uniform_int_distribution<size_t>  del_el(1, i);
             size_t el = reorder(del_el(del_generator), order, seed);
             set.erase((unsigned char*)&el, sizeof(el));
         }
