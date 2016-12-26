@@ -1060,7 +1060,7 @@ namespace ptrie {
     void
     set<PTRIEDEF>::inject_byte(node_t* node, uchar topush, size_t totsize, auto _sizes)
     {
-        const bool hasent = true;
+        const bool hasent = _entries != NULL;
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
             nbucket = (bucket_t *) malloc(totsize +
@@ -1135,7 +1135,7 @@ namespace ptrie {
     bool
     set<PTRIEDEF>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
     {
-        const bool hasent = true;
+        const bool hasent = _entries != NULL;
         if(node->_type == 0)
         {
             if(node->_count == 0)
@@ -1415,7 +1415,7 @@ namespace ptrie {
     void
     set<PTRIEDEF>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
     {
-        const bool hasent = true;
+        const bool hasent = _entries != NULL;
 
         // first find size and amount before
         uint16_t size = 0;
@@ -1486,7 +1486,7 @@ namespace ptrie {
             }
 
             // copy over old data
-            if (size > 0) {
+            if (nbucketsize > 0) {
                 memcpy(nbucket->data(nbucketcount, hasent),
                        node->_data->data(node->_count, hasent), before);
                 assert(nbucketsize >= before);
@@ -1529,6 +1529,7 @@ namespace ptrie {
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
         if(!res || (size_t)fwd == (size_t)base)
         {
+            assert(!this->exists(encoding).first);
             return false;
         }
         else
