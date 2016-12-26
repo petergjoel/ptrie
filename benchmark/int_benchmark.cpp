@@ -52,9 +52,6 @@ size_t reorder(size_t el, std::vector<size_t>& order, size_t seed)
         }
         for(size_t j = 0; j < 8; ++j) flip[j] = flip[j] xor t.at(order[i]);
     }
-    std::cout << s << std::endl;
-    std::cout << t << std::endl;
-    std::cout << el << " -> " << target << std::endl;
     return target;
 }
 
