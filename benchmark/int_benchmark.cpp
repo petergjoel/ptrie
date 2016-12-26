@@ -38,19 +38,23 @@ size_t reorder(size_t el, std::vector<size_t>& order, size_t seed)
     ptrie::binarywrapper_t t(sizeof(size_t)*8);
 
     size_t& target = *(size_t*)t.raw();
-    bool flip = s.at(7);
+    bool flip[8];
+    for(size_t i = 0; i < 8; ++i) flip[i] = s.at(i);
     for(size_t i = 0; i < sizeof(size_t)*8; ++i)
     {
-        if(order[i] == 7)
+        if(i <= 7)
         {
             t.set(order[i], s.at(i));
         }
         else
         {
-            t.set(order[i], flip xor s.at(i));
+            t.set(order[i], flip[i % 8] xor s.at(i));
         }
-        flip = flip xor t.at(order[i]);
+        for(size_t j = 0; j < 8; ++j) flip[j] = flip[j] xor t.at(order[i]);
     }
+    std::cout << s << std::endl;
+    std::cout << t << std::endl;
+    std::cout << el << " -> " << target << std::endl;
     return target;
 }
 
