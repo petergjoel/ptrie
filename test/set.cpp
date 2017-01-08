@@ -22,7 +22,7 @@
 #include "utils.h"
 
 using namespace ptrie;
-/*
+
 BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
                   1024 * 10);
     }
 }
-*/
+
 BOOST_AUTO_TEST_CASE(PseudoRand2)
 {
     for(size_t seed = 0; seed < 10; ++ seed) {
