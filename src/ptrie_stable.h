@@ -34,11 +34,10 @@ namespace ptrie {
     uint16_t HEAPBOUND = 128,
     uint16_t SPLITBOUND = 128,
     size_t ALLOCSIZE = (1024 * 64),
-    size_t FWDALLOC = 256,
     typename T = void,
     typename I = size_t
     >
-    class set_stable : public set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, T, I> {
+    class set_stable : public set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
         using pt = set<PTRIEDEF>;
     public:
         set_stable() : pt()

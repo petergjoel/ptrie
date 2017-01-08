@@ -33,10 +33,9 @@ namespace ptrie {
     uint16_t HEAPBOUND = 128,
     uint16_t SPLITBOUND = 128,
     size_t ALLOCSIZE = (1024 * 64),
-    size_t FWDALLOC = 256,
     typename I = size_t>
     class map :
-    public set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, T, I> {
+    public set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
 #define pt set_stable<PTRIEDEF>
     public:
         using pt::set_stable;
@@ -49,10 +48,9 @@ namespace ptrie {
     uint16_t HEAPBOUND,
     uint16_t SPLITBOUND,
     size_t ALLOCSIZE,
-    size_t FWDALLOC,
     typename I>
     T&
-    map<T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, I>::get_data(I index) {
+    map<T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent.data;
     }

@@ -59,14 +59,13 @@ namespace ptrie {
     typedef std::pair<bool, size_t> returntype_t;
 
 
-#define PTRIETPL uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, size_t FWDALLOC, typename T, typename I
-#define PTRIEDEF HEAPBOUND, SPLITBOUND, ALLOCSIZE, FWDALLOC, T, I
+#define PTRIETPL uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
+#define PTRIEDEF HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I
 
     template<
     uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 129,
     size_t ALLOCSIZE = (1024 * 64),
-    size_t FWDALLOC = 256,
     typename T = void,
     typename I = size_t
     >
