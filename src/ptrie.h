@@ -78,7 +78,7 @@ namespace ptrie {
         static_assert(HEAPBOUND * sizeof(fwdnode_t) < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * sizeof(fwdnode_t) should be less than 2^16");
 
-        static_assert(SPLITBOUND <= sizeof(fwdnode_t),
+        static_assert(SPLITBOUND < sizeof(fwdnode_t),
                 "HEAPBOUND * SPLITBOUND should be less than sizeof(fwdnode_t)");
 
 
@@ -407,6 +407,7 @@ namespace ptrie {
         const uint16_t bucketsize = node->_count;
         assert(jumppar->_cnt >= bucketsize);
         if(bucketsize < SPLITBOUND || jumppar->_cnt < sizeof(fwdnode_t)) return;
+        jumppar->_cnt += (sizeof(fwdnode_t)-bucketsize);
         const bool hasent = _entries != NULL;
         node_t lown;
         fwdnode_t* fwd_n = new_fwd();
@@ -884,7 +885,7 @@ namespace ptrie {
             return ret;
         }
 
-        fwd->_cnt = std::min(fwd->_cnt + 1, (uint32_t)sizeof(fwdnode_t));
+        fwd->_cnt += 1;
 
         if((size_t)base == (size_t)fwd)
         {
@@ -1156,6 +1157,7 @@ namespace ptrie {
         const bool hasent = _entries != NULL;
         if(node->_type == 0)
         {
+            if(node->_count < SPLITBOUND/3) return true;
             if(node->_count == 0)
             {
                 for(size_t i = 0; i < 256; ++i) parent->_children[i] = parent;
@@ -1168,6 +1170,7 @@ namespace ptrie {
                         fwdnode_t* next = parent->_parent;
                         delete parent;
                         parent = next;
+                        parent->_cnt -= sizeof(fwdnode_t);
                         base_t* other = parent;
                         for(size_t i = 0; i < 256; ++i)
                         {
@@ -1192,13 +1195,7 @@ namespace ptrie {
                         else if(other->_type != 255)
                         {
                             node = (node_t*)other;
-                            if(node->_count <= SPLITBOUND / 3) {
-                                return merge_down(parent, node, on_heap);
-                            }
-                            else
-                            {
-                                return true;
-                            }
+                            return merge_down(parent, node, on_heap);
                         }
                         else if(other != parent)
                         {
@@ -1240,6 +1237,7 @@ namespace ptrie {
                     node->_totsize = totsize;
                     fwdnode_t* next = parent->_parent;
                     delete parent;
+                    next->_cnt -= sizeof(fwdnode_t);
                     return merge_down(next, node, on_heap + 1);
                 }
                 else
@@ -1273,6 +1271,7 @@ namespace ptrie {
                     fwdnode_t* next = parent->_parent;
                     delete parent;
                     parent = next;
+                    parent->_cnt -= sizeof(fwdnode_t);
                     node->_type = 8;
 
                     if(on_heap == 0)
@@ -1307,7 +1306,7 @@ namespace ptrie {
                     return merge_down(next, node, on_heap + 1);
                 }
             }
-            if(node->_count <= SPLITBOUND / 3 && parent != this->_root)
+            if(parent != this->_root)
             {
                 assert(node->_count > 0);
                 return merge_down(parent->_parent, node, on_heap);
@@ -1315,6 +1314,7 @@ namespace ptrie {
         }
         else
         {
+            if(node->_count > SPLITBOUND / 3) return true;
             uchar path = node->_path;
             base_t* child;
             if(path & binarywrapper_t::_masks[node->_type - 1])
@@ -1415,15 +1415,7 @@ namespace ptrie {
                        parent->_children[i] == node);
                     parent->_children[i] = node;
                 }
-                if(node->_count <= SPLITBOUND / 3)
-                {
-                    assert(node->_count > 0);
-                    return merge_down(parent, node, on_heap);
-                }
-                else
-                {
-                    return true;
-                }
+                return merge_down(parent, node, on_heap);
             }
         }
         return true;
@@ -1526,10 +1518,8 @@ namespace ptrie {
             node->_count = 0;
             node->_totsize = 0;
         }
-        if(nbucketcount <= SPLITBOUND / 3)
-        {
-            merge_down(parent, node, on_heap);
-        }
+
+        merge_down(parent, node, on_heap);
     }
 
     template<PTRIETPL>
