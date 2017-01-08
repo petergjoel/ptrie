@@ -741,8 +741,8 @@ namespace ptrie {
 
         if(byte >= 2)
         {
-            assert(hnode._totsize == bsize * hnode._count);
-            assert(node->_totsize == bsize * node->_count);
+            assert(hnode._totsize == bytes(bsize) * hnode._count);
+            assert(node->_totsize == bytes(bsize) * node->_count);
         }
 
         size_t dist = (hnode._path - node->_path);
