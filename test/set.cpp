@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<31,4> set;
+    set<128,4> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);

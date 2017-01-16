@@ -31,8 +31,8 @@
 namespace ptrie {
 
     template<
-    uint16_t HEAPBOUND = 17,
-    uint16_t SPLITBOUND = 65,
+    uint16_t HEAPBOUND = 128,
+    uint16_t SPLITBOUND = 128,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t

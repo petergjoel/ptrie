@@ -205,7 +205,6 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
-    std::cout << "LAST" << std::endl;
     const int max = 8000;
     set_stable<sizeof(size_t)+1,4> set;
     try_insert(set,
@@ -215,7 +214,6 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
             max);
     for(int i = max - 1; i >= 0; --i)
     {
-        std::cout << i << std::endl;
         int seed = 0;
         if(i % 2)
             seed = ((max/2) - 1) - (i/2);
