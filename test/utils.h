@@ -23,7 +23,8 @@
 
 using namespace ptrie;
 
-void try_insert(auto& trie, auto generator, size_t N)
+template<typename T, typename G>
+void try_insert(T& trie, G generator, size_t N)
 {
     for(size_t i = 0; i < N; ++i)
     {
@@ -46,7 +47,7 @@ void try_insert(auto& trie, auto generator, size_t N)
         data.release();
     }
 
-};
+}
 
 ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t))
 {

@@ -20,7 +20,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-void read_arg(const char* data, auto& dest, const char* error, const char* type)
+
+template<typename T>
+void read_arg(const char* data, T& dest, const char* error, const char* type)
 {
     if(sscanf(data, type, &dest) != 1)
     {

@@ -74,7 +74,8 @@ struct wrapper_t
 
 };
 
-void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
+template<typename T>
+void set_insert(T& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
 {
     std::default_random_engine generator(seed);
     std::uniform_real_distribution<double> dist;
@@ -129,7 +130,8 @@ void set_insert(auto& set, size_t elements, size_t seed, size_t bytes, double de
     w.data = binarywrapper_t();
 }
 
-void set_insert_ptrie(auto& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
+template<typename T> 
+void set_insert_ptrie(T& set, size_t elements, size_t seed, size_t bytes, double deletes, double read_rate, size_t mv)
 {
     std::default_random_engine del_generator(seed);
     std::uniform_real_distribution<double> del_dist;
@@ -210,12 +212,12 @@ int main(int argc, const char** argv)
     double read_rate = 0.0;
     size_t maxval = 256;
 
-    read_arg(argv[2], elements, "Error in <number of elements>", "%zu");
-    if(argc > 3) read_arg(argv[3], seed, "Error in <seed>", "%zu");
-    if(argc > 4) read_arg(argv[4], bytes, "Error in <bytes>", "%zu");
-    if(argc > 5) read_arg(argv[5], deletes, "Error in <delete ratio>", "%lf");
-    if(argc > 6) read_arg(argv[6], read_rate, "Error in <read rate>", "%lf");
-    if(argc > 7) read_arg(argv[7], maxval, "Error in <max byte val>", "%zu");
+    read_arg<size_t>(argv[2], elements, "Error in <number of elements>", "%zu");
+    if(argc > 3) read_arg<size_t>(argv[3], seed, "Error in <seed>", "%zu");
+    if(argc > 4) read_arg<size_t>(argv[4], bytes, "Error in <bytes>", "%zu");
+    if(argc > 5) read_arg<double>(argv[5], deletes, "Error in <delete ratio>", "%lf");
+    if(argc > 6) read_arg<double>(argv[6], read_rate, "Error in <read rate>", "%lf");
+    if(argc > 7) read_arg<size_t>(argv[7], maxval, "Error in <max byte val>", "%zu");
 
     if(strcmp(type, "ptrie") == 0)
     {

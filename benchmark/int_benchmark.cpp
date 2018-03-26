@@ -56,7 +56,8 @@ size_t reorder(size_t el, std::vector<size_t>& order, size_t seed)
 }
 
 
-void set_insert(auto& set, size_t elements, size_t seed, double deletes, double read_rate, std::vector<size_t>& order)
+template<typename T>
+void set_insert(T& set, size_t elements, size_t seed, double deletes, double read_rate, std::vector<size_t>& order)
 {
     std::default_random_engine generator(seed);
     std::uniform_real_distribution<double> dist;
@@ -96,7 +97,8 @@ void set_insert(auto& set, size_t elements, size_t seed, double deletes, double 
     std::cout << "COMPLETED IN " << (0.001*elapsed.count()) << " SECONDS " << std::endl;
 }
 
-void set_insert_ptrie(auto& set, size_t elements, size_t seed, double deletes, double read_rate, std::vector<size_t>& order)
+template<typename T>
+void set_insert_ptrie(T& set, size_t elements, size_t seed, double deletes, double read_rate, std::vector<size_t>& order)
 {
     std::default_random_engine del_generator(seed);
     std::uniform_real_distribution<double> del_dist;
