@@ -84,7 +84,7 @@ namespace ptrie
         if(size == 0 || offset >= encodingsize)
         {
             _nbytes = 0;
-            _blob = NULL;            
+            _blob = nullptr;            
             return;
         }
         
@@ -96,7 +96,7 @@ namespace ptrie
             _nbytes -= offset;
         else {
             _nbytes = 0;
-            _blob = NULL;
+            _blob = nullptr;
             return;
         }
 

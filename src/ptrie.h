@@ -110,7 +110,7 @@ namespace ptrie {
 
             inline I* entries(uint16_t count, bool hasent) {
                 if (hasent) return (I*) (data(0, hasent) + (count * (sizeof (uint16_t))));
-                else return NULL;
+                else return nullptr;
             }
 
             inline uchar* data(uint16_t count, bool hasent) {
@@ -128,7 +128,7 @@ namespace ptrie {
         struct node_t : public base_t {
             uint16_t _totsize = 0;
             uint16_t _count = 0; // bucket-counts
-            bucket_t* _data = NULL; // back-pointers to data-array up to date
+            bucket_t* _data = nullptr; // back-pointers to data-array up to date
         } __attribute__((packed));
 
         struct fwdnode_t : public base_t {
@@ -140,7 +140,7 @@ namespace ptrie {
             }
         } __attribute__((packed));
 
-        linked_bucket_t<entry_t, ALLOCSIZE>* _entries = NULL;
+        linked_bucket_t<entry_t, ALLOCSIZE>* _entries = nullptr;
 
         fwdnode_t* _root;
     protected:
@@ -218,13 +218,13 @@ namespace ptrie {
     void set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::init()
     {
         delete _entries;
-        if(_entries != NULL)
+        if(_entries != nullptr)
         {
             _entries = new linked_bucket_t<entry_t, ALLOCSIZE>(1);
         }
 
         _root = new_fwd();
-        _root->_parent = NULL;
+        _root->_parent = nullptr;
         _root->_type = 255;
         _root->_path = 0;
 
@@ -265,7 +265,7 @@ namespace ptrie {
             if (byte >= 2) next = (*t_pos)[encoding[byte - 2]];
             else next = (*t_pos)[sc[1 - byte]];
 
-            assert(next != NULL);
+            assert(next != nullptr);
             if(next == t_pos)
             {
               return t_pos;
@@ -286,7 +286,7 @@ namespace ptrie {
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
         bool found = false;
 
         uint16_t encsize;
@@ -406,7 +406,7 @@ namespace ptrie {
 
         const uint16_t bucketsize = node->_count;
         if(bucketsize < (sizeof(fwdnode_t) / sizeof(size_t))) return;
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
         node_t lown;
         fwdnode_t* fwd_n = new_fwd();
 
@@ -422,11 +422,11 @@ namespace ptrie {
         node->_type = 1;
 
 
-        for (size_t i = 0; i < 256; ++i) (*fwd_n)[i] = (locked == NULL ? node : locked);
+        for (size_t i = 0; i < 256; ++i) (*fwd_n)[i] = (locked == nullptr ? node : locked);
 
         (*jumppar)[fwd_n->_path] = fwd_n;
 
-        lown._data = NULL;
+        lown._data = nullptr;
 
         int lcnt = 0;
         int hcnt = 0;
@@ -479,13 +479,13 @@ namespace ptrie {
         // allocate new buckets
         node->_totsize = hsize > 0 ? hsize : 0;
         node->_count = hcnt;
-        if (hcnt == 0) node->_data = NULL;
+        if (hcnt == 0) node->_data = nullptr;
         else node->_data = (bucket_t*) malloc(node->_totsize + 
                 bucket_t::overhead(node->_count, hasent));
 
         lown._totsize = lsize > 0 ? lsize : 0;
         lown._count = lcnt;
-        if (lcnt == 0) lown._data = NULL;
+        if (lcnt == 0) lown._data = nullptr;
         else lown._data = (bucket_t*) malloc(lown._totsize +
                 bucket_t::overhead(lown._count, hasent));
 
@@ -605,7 +605,7 @@ namespace ptrie {
                 memcpy(node->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
             free(bucket);
             //            std::cout << "SPLIT ALL HIGH" << std::endl;
-            lown._data = NULL;
+            lown._data = nullptr;
             for (size_t i = 0; i < 128; ++i) (*fwd_n)[i] = fwd_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
@@ -641,7 +641,7 @@ namespace ptrie {
             free(bucket);
             if(lown._count >= SPLITBOUND && lown._count >= node->_count)
             {
-                split_node(low_n, fwd_n, NULL, bsize > 0 ? bsize - 1 : 0, byte + 1);
+                split_node(low_n, fwd_n, nullptr, bsize > 0 ? bsize - 1 : 0, byte + 1);
             }
             if(node->_count >= SPLITBOUND)
             {
@@ -743,7 +743,7 @@ namespace ptrie {
 
         node->_type += 1;
 
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
 
         if (node->_count == 0) // only high node has data
         {
@@ -819,7 +819,7 @@ namespace ptrie {
             }
             if(h_node->_count >= SPLITBOUND)
             {
-                split_node(h_node, jumppar, NULL, bsize, byte);
+                split_node(h_node, jumppar, nullptr, bsize, byte);
             }
         }
     }
@@ -836,7 +836,7 @@ namespace ptrie {
         uint b_index = 0;
 
         fwdnode_t* fwd = _root;
-        base_t* base = NULL;
+        base_t* base = nullptr;
         uint byte = 0;
 
         b_index = 0;
@@ -844,7 +844,7 @@ namespace ptrie {
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
         if((size_t)fwd != (size_t)base) {
             node_t* node = (node_t*)base;
-            if (_entries != NULL && res) {
+            if (_entries != nullptr && res) {
                 ret.second = node->_data->entries(node->_count, true)[b_index];
             }
         }
@@ -856,7 +856,7 @@ namespace ptrie {
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const uchar* data, size_t length) {
         assert(length <= 65536);
         binarywrapper_t e2((uchar*) data, length * 8);
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
         //        binarywrapper_t encoding(length*8+16);
         //        memcpy(encoding.raw()+2, data, length);
         //        length += 2;
@@ -865,8 +865,8 @@ namespace ptrie {
         uint b_index = 0;
 
         fwdnode_t* fwd = _root;
-        node_t* node = NULL;
-        base_t* base = NULL;
+        node_t* node = nullptr;
+        base_t* base = nullptr;
         uint byte = 0;
 
         bool res = best_match(e2, &fwd, &base, byte, b_index);
@@ -883,7 +883,7 @@ namespace ptrie {
         {
             node = new_node();
             node->_count = 0;
-            node->_data = NULL;
+            node->_data = nullptr;
             node->_type = 0;
             node->_path = 0;
             assert(node);
@@ -1038,9 +1038,9 @@ namespace ptrie {
 
 #ifndef NDEBUG        
         for (int i = byte - 1; i >= 2; --i) {
-            assert(fwd != NULL);
+            assert(fwd != nullptr);
             assert(e2[-2 + i] == fwd->_path);
-            assert(fwd->_parent == NULL || fwd->_parent->_children[fwd->_path] == fwd);
+            assert(fwd->_parent == nullptr || fwd->_parent->_children[fwd->_path] == fwd);
             fwd = fwd->_parent;
 
         }
@@ -1071,7 +1071,7 @@ namespace ptrie {
     void
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
             nbucket = (bucket_t *) malloc(totsize +
@@ -1107,7 +1107,7 @@ namespace ptrie {
                 }
                 else if(size >= HEAPBOUND)
                 {
-                    uchar* src = NULL;
+                    uchar* src = nullptr;
                     uchar* dest = (uchar*)malloc(size);
                     memcpy(&(nbucket->data(node->_count, hasent)[dcnt]), &dest, sizeof(size_t));
                     ++dest;
@@ -1146,7 +1146,7 @@ namespace ptrie {
     bool
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
     {
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
         if(node->_type == 0)
         {
             if(node->_count < SPLITBOUND/3) return true;
@@ -1169,7 +1169,7 @@ namespace ptrie {
                             {
                                 if(other != parent)
                                 {
-                                    other = NULL;
+                                    other = nullptr;
                                     break;
                                 }
                                 else
@@ -1179,7 +1179,7 @@ namespace ptrie {
                             }
                         }
 
-                        if(other == NULL)
+                        if(other == nullptr)
                         {
                             return true;
                         }
@@ -1414,7 +1414,7 @@ namespace ptrie {
     void
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
     {
-        const bool hasent = _entries != NULL;
+        const bool hasent = _entries != nullptr;
 
         // first find size and amount before
         uint16_t size = 0;
@@ -1502,7 +1502,7 @@ namespace ptrie {
         else
         {
             free(node->_data);
-            node->_data = NULL;
+            node->_data = nullptr;
             node->_count = 0;
             node->_totsize = 0;
         }
@@ -1518,7 +1518,7 @@ namespace ptrie {
         uint b_index = 0;
 
         fwdnode_t* fwd = this->_root;
-        base_t* base = NULL;
+        base_t* base = nullptr;
         uint byte = 0;
 
         b_index = 0;

@@ -59,8 +59,8 @@ namespace ptrie {
     template<PTRIETPL>
     size_t
     set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, uchar* destination) {
-        typename pt::node_t* node = NULL;
-        typename pt::fwdnode_t* par = NULL;
+        typename pt::node_t* node = nullptr;
+        typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        
         std::stack<uchar> path;
         size_t bindex = 0;

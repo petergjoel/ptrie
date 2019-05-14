@@ -53,7 +53,7 @@ namespace ptrie
          * Empty constructor, no data is allocated
          */
         
-        binarywrapper_t() : _blob(NULL), _nbytes(0)
+        binarywrapper_t() : _blob(nullptr), _nbytes(0)
         {            
         }
         
@@ -229,7 +229,7 @@ namespace ptrie
         
         inline void zero() const
         {
-            if(_nbytes > 0 && _blob != NULL)
+            if(_nbytes > 0 && _blob != nullptr)
             {
                 memset(const_raw(), 0x0, _nbytes); 
             }
@@ -243,7 +243,7 @@ namespace ptrie
         {
             if(_nbytes > __BW_BSIZE__)
                 dealloc(_blob);
-            _blob = NULL;
+            _blob = nullptr;
             _nbytes = 0;
         }
                 
