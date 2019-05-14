@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <limits>
 #include <stdlib.h>
+#include <malloc.h>
 #include <stdint.h>
 
 #ifndef BINARYWRAPPER_H
@@ -60,7 +61,7 @@ namespace ptrie
          Allocates a room for at least size bits
          */
         
-        binarywrapper_t(size_t size);
+        binarywrapper_t(uint size);
         
         /**
          * Constructor for copying over data from latest the offset'th bit.
@@ -199,10 +200,10 @@ namespace ptrie
          * @return 
          */
         
-        static size_t overhead(size_t size);
+        static size_t overhead(uint size);
         
         
-        static size_t bytes(size_t size);
+        static size_t bytes(uint size);
         // modifiers
         /**
          * Change value of place'th bit 
@@ -252,7 +253,7 @@ namespace ptrie
          * @return 
          */
 
-        inline uchar operator[](size_t i) const
+        inline uchar operator[](int i) const
         {
             if (i >= _nbytes) {
                  return 0x0;
@@ -324,7 +325,7 @@ namespace ptrie
             free(data);
         }
         
-        static inline uchar* offset(uchar* data, uint32_t size)
+        static inline uchar* offset(uchar* data, uint16_t size)
         {
 //            if((size % __BW_BSIZE__) == 0) return data;
 //            else return &data[(__BW_BSIZE__ - (size % __BW_BSIZE__))];
@@ -335,7 +336,7 @@ namespace ptrie
         uchar* _blob;
             
         // number of bytes allocated on heap
-        uint32_t _nbytes;
+        uint16_t _nbytes;
                
         // masks for single-bit access
      } __attribute__((packed));
