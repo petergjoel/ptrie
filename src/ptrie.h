@@ -31,6 +31,7 @@
 #include <stack>
 #include <string.h>
 #include <functional>
+#include <memory>
 
 #include "binarywrapper.h"
 #include "linked_bucket.h"
@@ -140,9 +141,9 @@ namespace ptrie {
             }
         } __attribute__((packed));
 
-        linked_bucket_t<entry_t, ALLOCSIZE>* _entries = nullptr;
+        std::shared_ptr<linked_bucket_t<entry_t, ALLOCSIZE>> _entries = nullptr;
 
-        fwdnode_t* _root;
+        std::shared_ptr<fwdnode_t> _root;
     protected:
         node_t* new_node();
         fwdnode_t* new_fwd();
@@ -185,7 +186,7 @@ namespace ptrie {
     template<PTRIETPL>
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::~set() {
         std::stack<fwdnode_t*> stack;
-        stack.push(_root);
+        stack.push(_root.get());
         while(!stack.empty())
         {
             fwdnode_t* next = stack.top();
@@ -209,27 +210,29 @@ namespace ptrie {
                     }
                 }
             }
-            delete next;
+            if(_root.get() != next)
+                delete next;
         }
-       delete _entries;
+        _entries = nullptr;
+        _root = nullptr;
     }
 
     template<PTRIETPL>
     void set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::init()
     {
-        delete _entries;
+        _entries = nullptr;
         if(_entries != nullptr)
         {
-            _entries = new linked_bucket_t<entry_t, ALLOCSIZE>(1);
+            _entries = std::make_unique<linked_bucket_t<entry_t, ALLOCSIZE>>(1);
         }
 
-        _root = new_fwd();
+        _root = std::unique_ptr<fwdnode_t>(new_fwd());
         _root->_parent = nullptr;
         _root->_type = 255;
         _root->_path = 0;
 
         size_t i = 0;
-        for (; i < 256; ++i) (*_root)[i] = _root;
+        for (; i < 256; ++i) (*_root)[i] = _root.get();
     }
 
     template<PTRIETPL>
@@ -835,7 +838,7 @@ namespace ptrie {
 
         uint b_index = 0;
 
-        fwdnode_t* fwd = _root;
+        fwdnode_t* fwd = _root.get();
         base_t* base = nullptr;
         uint byte = 0;
 
@@ -864,7 +867,7 @@ namespace ptrie {
 
         uint b_index = 0;
 
-        fwdnode_t* fwd = _root;
+        fwdnode_t* fwd = _root.get();
         node_t* node = nullptr;
         base_t* base = nullptr;
         uint byte = 0;

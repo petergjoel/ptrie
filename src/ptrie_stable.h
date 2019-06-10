@@ -46,7 +46,7 @@ namespace ptrie {
     public:
         set_stable() : pt()
         {
-            this->_entries = new linked_bucket_t<typename pt::entry_t, ALLOCSIZE>(1);
+            this->_entries = std::make_unique<linked_bucket_t<typename pt::entry_t, ALLOCSIZE>>(1);
         }
 
         size_t size() const {
@@ -87,7 +87,7 @@ namespace ptrie {
 
 
 
-        while (par != this->_root) {
+        while (par != this->_root.get()) {
             path.push(par->_path);
             par = par->_parent;
         }

@@ -278,17 +278,77 @@ namespace ptrie
         }
             
         /**
-         * Compares wrappers bytes by bytes. If sizes do not match, they are not
-         * equal. If sizes match, compares byte by byte.
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
          * @param enc1 
          * @param enc2
          * @return true if a match, false otherwise
-         */
-         friend bool operator==(  const binarywrapper_t &enc1, 
-                                        const binarywrapper_t &enc2) {
+         */        
+        friend bool operator==( const binarywrapper_t &enc1, 
+                                const binarywrapper_t &enc2) {
             return enc1.cmp(enc2) == 0;
         }
-         
+        
+        /**
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
+         * @param enc1 
+         * @param enc2
+         * @return true if a match, false otherwise
+         */        
+        friend bool operator<(const binarywrapper_t &enc1, 
+                               const binarywrapper_t &enc2) {
+            return enc1.cmp(enc2) < 0;
+        }
+
+        /**
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
+         * @param enc1 
+         * @param enc2
+         * @return true if a match, false otherwise
+         */        
+        friend bool operator!=(const binarywrapper_t &enc1, 
+                               const binarywrapper_t &enc2) {
+            return !(enc1 == enc2);
+        }
+
+        /**
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
+         * @param enc1 
+         * @param enc2
+         * @return true if a match, false otherwise
+         */        
+        friend bool operator>=(const binarywrapper_t &enc1, 
+                               const binarywrapper_t &enc2) {
+            return !(enc1 < enc2);
+        }
+        
+        /**
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
+         * @param enc1 
+         * @param enc2
+         * @return true if a match, false otherwise
+         */        
+        friend bool operator>(const binarywrapper_t &enc1, 
+                               const binarywrapper_t &enc2) {
+            return enc2 < enc1;
+        }
+
+        /**
+         * If sizes differs, the comparison is done here.
+         * If sizes match, compares byte by byte.
+         * @param enc1 
+         * @param enc2
+         * @return true if a match, false otherwise
+         */        
+        friend bool operator<=(const binarywrapper_t &enc1, 
+                               const binarywrapper_t &enc2) {
+            return enc2 <= enc1;
+        }
+        
         const static uchar _masks[8];
     private:
          

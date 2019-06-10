@@ -71,7 +71,7 @@ public:
         _index->_index[0] = _begin;
     }
 
-    virtual ~linked_bucket_t() {
+    ~linked_bucket_t() {
 
         do {
             bucket_t* n = _begin->_nbucket.load();
