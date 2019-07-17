@@ -176,7 +176,10 @@ namespace ptrie {
         returntype_t exists(const uchar* data, size_t length);
         bool         erase (binarywrapper_t wrapper);
         bool         erase (const uchar* data, size_t length);
-
+        set(const set&) = default;
+        set(set&&) = default;
+        set& operator=(const set&) = default;
+        set& operator=(set&&) = default;
 
     };
 
