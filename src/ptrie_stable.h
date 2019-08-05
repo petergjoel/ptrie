@@ -49,9 +49,7 @@ namespace ptrie {
             this->_entries = std::make_unique<linked_bucket_t<typename pt::entry_t, ALLOCSIZE>>(1);
         }
         
-        set_stable(const set_stable&) = default;
         set_stable(set_stable&&) = default;
-        set_stable& operator=(const set_stable&) = default;
         set_stable& operator=(set_stable&&) = default;
         
         size_t size() const {

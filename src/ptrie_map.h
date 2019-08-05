@@ -43,9 +43,7 @@ namespace ptrie {
 #endif
     public:
         using pt::set_stable;
-        map(const map&) = default;
         map(map&&) = default;
-        map& operator=(const map&) = default;
         map& operator=(map&&) = default;
         T& get_data(I index);
 
