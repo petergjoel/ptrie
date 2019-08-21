@@ -6,6 +6,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+option(PTRIE_BuildTests "Build the unit tests when BUILD_TESTING is enabled." ON)
 
 project(ptrie VERSION 1.0.0 LANGUAGES CXX)
 if(NOT CMAKE_BUILD_TYPE)
@@ -18,14 +19,16 @@ set(CMAKE_CXX_STANDARD 17)
 #actual library
 add_subdirectory(src)
 
-#benchmark
-add_subdirectory(benchmark)
+if(BUILD_TESTING AND PTRIE_BuildTests)
+	#benchmark
+	add_subdirectory(benchmark)
 
-#testing
-add_subdirectory(test)
-enable_testing()
-add_test(NAME Wrapper   COMMAND Wrapper)
-add_test(NAME Set       COMMAND Set)
-add_test(NAME Delete    COMMAND Delete)
-add_test(NAME StableSet COMMAND StableSet)
-add_test(NAME Map       COMMAND Map)
+	#testing
+	add_subdirectory(test)
+	enable_testing()
+	add_test(NAME Wrapper   COMMAND Wrapper)
+	add_test(NAME Set       COMMAND Set)
+	add_test(NAME Delete    COMMAND Delete)
+	add_test(NAME StableSet COMMAND StableSet)
+	add_test(NAME Map       COMMAND Map)
+endif()
