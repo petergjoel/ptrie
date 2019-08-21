@@ -19,7 +19,7 @@
 #define BOOST_TEST_MODULE BinaryWrapper
 
 #include <boost/test/unit_test.hpp>
-#include <binarywrapper.h>
+#include <ptrie/binarywrapper.h>
 
 using namespace ptrie;
 

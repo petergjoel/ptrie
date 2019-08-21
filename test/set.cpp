@@ -18,7 +18,7 @@
 #define BOOST_TEST_MODULE PTrieSet
 #include <boost/test/unit_test.hpp>
 
-#include <ptrie.h>
+#include <ptrie/ptrie.h>
 #include "utils.h"
 
 using namespace ptrie;
