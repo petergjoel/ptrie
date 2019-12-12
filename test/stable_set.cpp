@@ -17,7 +17,7 @@
 // Created by Peter G. Jensen on 12/9/16.
 #define BOOST_TEST_MODULE PTrieStableSet
 #include <boost/test/unit_test.hpp>
-#include <ptrie_stable.h>
+#include <ptrie/ptrie_stable.h>
 #include <vector>
 #include "utils.h"
 

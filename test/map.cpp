@@ -18,7 +18,7 @@
 #define BOOST_TEST_MODULE PTrieMap
 #include <boost/test/unit_test.hpp>
 
-#include <ptrie_map.h>
+#include <ptrie/ptrie_map.h>
 
 #include <vector>
 #include "utils.h"

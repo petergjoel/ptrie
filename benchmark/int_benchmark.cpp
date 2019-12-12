@@ -17,13 +17,13 @@
 // Created by Peter G. Jensen on 24/12/16.
 
 #include <iostream>
-#include <ptrie.h>
+#include <ptrie/ptrie.h>
 #include <stdlib.h>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
 #include <tbb/concurrent_unordered_set.h>
 #include <random>
-#include <ptrie.h>
+#include <ptrie/ptrie.h>
 #include <chrono>
 #include <unordered_set>
 #include <vector>

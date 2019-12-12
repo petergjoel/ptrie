@@ -176,14 +176,16 @@ namespace ptrie {
         returntype_t exists(const uchar* data, size_t length);
         bool         erase (binarywrapper_t wrapper);
         bool         erase (const uchar* data, size_t length);
-
+        set(set&&) = default;
+        set& operator=(set&&) = default;
 
     };
 
     template<PTRIETPL>
     set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::~set() {
         std::stack<fwdnode_t*> stack;
-        stack.push(_root.get());
+        if(_root != nullptr)
+            stack.push(_root.get());
         while(!stack.empty())
         {
             fwdnode_t* next = stack.top();
