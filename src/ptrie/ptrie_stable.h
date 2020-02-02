@@ -31,17 +31,18 @@
 namespace ptrie {
 
     template<
+    typename KEY = unsigned char,
     uint16_t HEAPBOUND = 128,
     uint16_t SPLITBOUND = 128,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t
     >
-    class set_stable : public set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
+    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
 #ifdef __APPLE__
 #define pt set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>
 #else
-        using pt = set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
+        using pt = set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
 #endif
     public:
         set_stable() : pt()
@@ -61,7 +62,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     size_t
-    set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, uchar* destination) {
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, uchar* destination) {
         typename pt::node_t* node = nullptr;
         typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        

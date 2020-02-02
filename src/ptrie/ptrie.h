@@ -66,9 +66,10 @@ namespace ptrie {
     } __attribute__((packed));
 
 
-#define PTRIETPL uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
+#define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
     
     template<
+    typename KEY = uchar,
     uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 129,
     size_t ALLOCSIZE = (1024 * 64),
@@ -92,6 +93,8 @@ namespace ptrie {
 
         static_assert(HEAPBOUND > sizeof(size_t),
                 "HEAPBOUND MUST BE LARGER THAN sizeof(size_t)");
+        
+        static_assert(std::has_unique_object_representations<KEY>::value);
     protected:
 
         typedef ptrie_el_t<T, I> entry_t;
@@ -182,7 +185,7 @@ namespace ptrie {
     };
 
     template<PTRIETPL>
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::~set() {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::~set() {
         std::stack<fwdnode_t*> stack;
         if(_root != nullptr)
             stack.push(_root.get());
@@ -217,7 +220,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::init()
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::init()
     {
         _entries = nullptr;
         if(_entries != nullptr)
@@ -235,26 +238,26 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::set()
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::set()
     {
         init();
     }
 
     template<PTRIETPL>
-    typename set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t*
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_node() {
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t*
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_node() {
         return new node_t;
     }
 
     template<PTRIETPL>
-    typename set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fwdnode_t*
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_fwd() {
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fwdnode_t*
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_fwd() {
         return new fwdnode_t;
     }
 
     template<PTRIETPL>
     base_t*
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte) {
         fwdnode_t* t_pos = *tree_pos;
 
         uint16_t s = encoding.size(); // TODO remove minus to
@@ -283,7 +286,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte) {
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte) {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
@@ -389,7 +392,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node,
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node,
             uint& byte, uint& b_index) {
         // run through tree as long as there are branches covering some of 
         // the encoding
@@ -404,7 +407,7 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         const uint16_t bucketsize = node->_count;
         if(bucketsize < (sizeof(fwdnode_t) / sizeof(size_t))) return;
@@ -656,7 +659,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         assert(bsize != std::numeric_limits<size_t>::max());
         if (node->_type == 8) // new fwd node!
@@ -828,7 +831,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const uchar* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const uchar* data, size_t length) {
         assert(length <= 65536);
         binarywrapper_t encoding((uchar*) data, length * 8);
         //        memcpy(encoding.raw()+2, data, length);
@@ -855,7 +858,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const uchar* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const uchar* data, size_t length) {
         assert(length <= 65536);
         binarywrapper_t e2((uchar*) data, length * 8);
         const bool hasent = _entries != nullptr;
@@ -1058,20 +1061,20 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(binarywrapper_t wrapper) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(binarywrapper_t wrapper) {
         return insert(wrapper.raw(), wrapper.size());
     }
 
     template<PTRIETPL>
     returntype_t
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(binarywrapper_t wrapper) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(binarywrapper_t wrapper) {
         return exists(wrapper.raw(), wrapper.size());
     }
 
     
         template<PTRIETPL>
     void
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {
         const bool hasent = _entries != nullptr;
         bucket_t *nbucket = node->_data;
@@ -1146,7 +1149,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
     {
         const bool hasent = _entries != nullptr;
         if(node->_type == 0)
@@ -1414,7 +1417,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
     {
         const bool hasent = _entries != nullptr;
 
@@ -1514,7 +1517,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(binarywrapper_t encoding)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(binarywrapper_t encoding)
     {
         assert(encoding.size() <= 65536);
         uint b_index = 0;
@@ -1542,7 +1545,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const uchar *data, size_t length)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const uchar *data, size_t length)
     {
         binarywrapper_t b((uchar*)data, length*8);
         return erase(b);

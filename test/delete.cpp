@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
 {
-    set_stable<sizeof(size_t)+1, 4> set;
+    set_stable<unsigned char, sizeof(size_t)+1, 4> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 {
-    set_stable<sizeof(size_t)+1, 4> set;
+    set_stable<unsigned char, sizeof(size_t)+1, 4> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
     const int max = 8000;
-    set_stable<sizeof(size_t)+1,4> set;
+    set_stable<unsigned char, sizeof(size_t)+1,4> set;
     try_insert(set,
               [](size_t i){
                   return rand_data(i, 16, 16);

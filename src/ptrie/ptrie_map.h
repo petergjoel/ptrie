@@ -30,16 +30,17 @@ namespace ptrie {
 
     template<
     typename T,
+    typename KEY = unsigned char,
     uint16_t HEAPBOUND = 128,
     uint16_t SPLITBOUND = 128,
     size_t ALLOCSIZE = (1024 * 64),
     typename I = size_t>
     class map :
-    public set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
+    public set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
 #ifdef __APPLE__
 #define pt set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>        
 #else
-        using pt = set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
+        using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
 #endif
     public:
         using pt::set_stable;
@@ -51,12 +52,13 @@ namespace ptrie {
 
     template<
     typename T,
+    typename KEY,
     uint16_t HEAPBOUND,
     uint16_t SPLITBOUND,
     size_t ALLOCSIZE,
     typename I>
     T&
-    map<T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, I>::get_data(I index) {
+    map<T, KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent.data;
     }

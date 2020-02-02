@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<128,4> set;
+    set<unsigned char, 128,4> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data(8);
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(InsertByteSplit)
 
 BOOST_AUTO_TEST_CASE(HeapTest)
 {
-    set<sizeof(size_t)+1> set;
+    set<unsigned char, sizeof(size_t)+1> set;
     try_insert(set,
               [](size_t i){
                   binarywrapper_t data;
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set<sizeof(size_t)+1, 4> set;
+        set<unsigned char,sizeof(size_t)+1, 4> set;
         try_insert(set,
                   [seed](size_t i) {
                      return rand_data(seed + i, 16);
