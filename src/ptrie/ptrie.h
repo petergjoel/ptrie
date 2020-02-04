@@ -174,11 +174,14 @@ namespace ptrie {
         ~set();
 
         returntype_t insert(binarywrapper_t wrapper);
-        returntype_t insert(const uchar* data, size_t length);
+        returntype_t insert(const KEY* data, size_t length);
+        returntype_t insert(const KEY data) { return insert(&data, 1); }
         returntype_t exists(binarywrapper_t wrapper);
-        returntype_t exists(const uchar* data, size_t length);
+        returntype_t exists(const KEY* data, size_t length);
+        returntype_t exists(const KEY data) { return exists(&data, 1); }
         bool         erase (binarywrapper_t wrapper);
-        bool         erase (const uchar* data, size_t length);
+        bool         erase (const KEY* data, size_t length);
+        bool         erase (const KEY data) { return erase(&data, 1); }
         set(set&&) = default;
         set& operator=(set&&) = default;
 
@@ -831,9 +834,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const uchar* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const KEY* data, size_t length) {
         assert(length <= 65536);
-        binarywrapper_t encoding((uchar*) data, length * 8);
+        binarywrapper_t encoding((uchar*) data, sizeof(KEY) * length * 8);
         //        memcpy(encoding.raw()+2, data, length);
         //        length += 2;
         //        memcpy(encoding.raw(), &length, 2);
@@ -858,9 +861,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const uchar* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
-        binarywrapper_t e2((uchar*) data, length * 8);
+        binarywrapper_t e2((uchar*) data, sizeof(KEY) * length * 8);
         const bool hasent = _entries != nullptr;
         //        binarywrapper_t encoding(length*8+16);
         //        memcpy(encoding.raw()+2, data, length);
@@ -1545,9 +1548,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const uchar *data, size_t length)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
     {
-        binarywrapper_t b((uchar*)data, length*8);
+        binarywrapper_t b((uchar*)data, length*sizeof(KEY)*8);
         return erase(b);
     }
 

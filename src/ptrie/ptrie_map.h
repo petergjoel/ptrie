@@ -47,7 +47,11 @@ namespace ptrie {
         map(map&&) = default;
         map& operator=(map&&) = default;
         T& get_data(I index);
-
+        T& operator[](const KEY key)
+        {
+            return get_data(insert(key).second);
+        }
+        
     };
 
     template<
