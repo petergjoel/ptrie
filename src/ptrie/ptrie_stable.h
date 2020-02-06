@@ -67,7 +67,6 @@ namespace ptrie {
         typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        
         std::stack<uchar> path;
-        uchar* destination = (uchar*)dest;
         size_t bindex = 0;
         {
 #ifndef NDEBUG
@@ -141,14 +140,18 @@ namespace ptrie {
                 src = &(node->_data->data(node->_count, true)[offset]);
             }
 
-            memcpy(&(destination[ps]), src, (size - ps));
+            if constexpr (byte_iterator<KEY>::continious())
+                memcpy(&byte_iterator<KEY>::access(dest, ps), src, (size - ps));
+            else
+                for(size_t i = 0; i < (size - ps); ++i)
+                    byte_iterator<KEY>::access(dest, ps + i) = src[i];
         }
 
         uint16_t first = node->_data->first(0, bindex);
 
         size_t pos = 0;
         while (!path.empty()) {
-            destination[pos] = path.top();
+            byte_iterator<KEY>::access(dest, pos) = path.top();
             path.pop();
             ++pos;
         }
@@ -157,10 +160,10 @@ namespace ptrie {
         if (ps > 0) {
             uchar* fc = (uchar*) & first;
             if (ps > 1) {
-                destination[pos] = fc[1];
+                byte_iterator<KEY>::access(dest, pos) = fc[1];
                 ++pos;
             }
-            destination[pos] = fc[0];
+            byte_iterator<KEY>::access(dest, pos) = fc[0];
             ++pos;
         }
         
