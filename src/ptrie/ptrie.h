@@ -916,13 +916,8 @@ namespace ptrie {
     returntype_t
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
-        binarywrapper_t e2((uchar*) data, sizeof(KEY) * length * 8);
+        const auto size = sizeof(KEY) * length;
         const bool hasent = _entries != nullptr;
-        //        binarywrapper_t encoding(length*8+16);
-        //        memcpy(encoding.raw()+2, data, length);
-        //        length += 2;
-        //        memcpy(encoding.raw(), &length, 2);
-
         uint b_index = 0;
 
         fwdnode_t* fwd = _root.get();
@@ -949,9 +944,8 @@ namespace ptrie {
             node->_path = 0;
             assert(node);
 
-            size_t s = e2.size();
-            uchar* sc = (uchar*) & s;
-            uchar b = (byte < 2 ? sc[1 - byte] : e2[byte-2]);
+            uchar* sc = (uchar*) & size;
+            uchar b = (byte < 2 ? sc[1 - byte] : byte_iterator<KEY>::const_access(data, byte-2));
 
             uchar min = b;
             uchar max = b;
@@ -983,7 +977,7 @@ namespace ptrie {
         }
 
         // make a new bucket, add new entry, copy over old data
-        const auto nenc_size = e2.size()-byte;
+        const auto nenc_size = size-byte;
 
         
         uint nbucketcount = node->_count + 1;
@@ -1006,13 +1000,13 @@ namespace ptrie {
 
         uchar* f = (uchar*) & nbucket->first(nbucketcount, b_index);
         if (byte >= 2) {
-            f[1] = e2[-2 + byte];
-            f[0] = e2[-2 + byte + 1];
+            f[1] = byte_iterator<KEY>::const_access(data, -2 + byte);
+            f[0] = byte_iterator<KEY>::const_access(data, -2 + byte + 1);
         } else {
-            nbucket->first(nbucketcount, b_index) = e2.size();
+            nbucket->first(nbucketcount, b_index) = size;
             if (byte == 1) {
                 nbucket->first(nbucketcount, b_index) <<= 8;
-                f[0] = e2[0];
+                f[0] = byte_iterator<KEY>::const_access(data, 0);
             }
         }
 
@@ -1034,7 +1028,7 @@ namespace ptrie {
         uint tmpsize = 0;
         if (byte >= 2) tmpsize = b_index * bytes(nenc_size);
         else {
-            uint16_t o = e2.size();
+            uint16_t o = size;
             for (size_t i = 0; i < b_index; ++i) {
 
                 uint16_t f = node->_data->first(nbucketcount - 1, i);
