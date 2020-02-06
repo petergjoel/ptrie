@@ -8,6 +8,7 @@ add_library(ptrie ptrie/binarywrapper.h ptrie/binarywrapper.cpp ${HEADER_FILES})
 target_include_directories (ptrie PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS ptrie
+        RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 install (FILES  ptrie/binarywrapper.h ptrie/linked_bucket.h ptrie/ptrie.h ptrie/ptrie_map.h ptrie/ptrie_stable.h DESTINATION include/ptrie)

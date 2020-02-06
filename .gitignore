@@ -47,3 +47,4 @@ Testing/
 
 #vim
 *.swp
+/build/

@@ -51,6 +51,42 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
     }
 }
 
+BOOST_AUTO_TEST_CASE(PseudoRand1Key)
+{
+    constexpr auto mx = 5;
+    auto data = std::make_unique<int32_t[]>(mx);
+    auto unpack = std::make_unique<int32_t[]>(mx);
+    for(size_t seed = 314; seed < (314+10); ++seed) {
+        ptrie::map<size_t,int32_t> set;
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(seed+i);
+            for(size_t j = 0; j < mx; ++j)
+                data[j] = rand();
+            auto res = set.insert(data.get(), mx);
+            BOOST_CHECK(res.first);
+            set.get_data(res.second) = i;
+            auto res2 = set.exists(data.get(), mx);
+            BOOST_CHECK(res2.first);
+            BOOST_CHECK(res2.second == res.second);
+        }
+
+        // let us unwrap everything and check that it is there!
+
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(seed+i);
+            for(size_t j = 0; j < mx; ++j)
+                data[j] = rand();
+            auto res = set.exists(data.get(), mx);
+            BOOST_CHECK(res.first);
+            BOOST_CHECK_EQUAL(set.get_data(res.second), i);
+            auto size = set.unpack(res.second, unpack.get());
+            BOOST_CHECK(size == mx);
+            BOOST_CHECK(std::equal(data.get(), data.get()+mx, unpack.get()));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 512; seed < (512+10); ++seed) {

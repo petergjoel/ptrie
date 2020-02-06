@@ -62,11 +62,12 @@ namespace ptrie {
 
     template<PTRIETPL>
     size_t
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* destination) {
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) {
         typename pt::node_t* node = nullptr;
         typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        
         std::stack<uchar> path;
+        uchar* destination = (uchar*)dest;
         size_t bindex = 0;
         {
 #ifndef NDEBUG
