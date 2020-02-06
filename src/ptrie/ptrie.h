@@ -65,6 +65,30 @@ namespace ptrie {
         uchar _type;
     } __attribute__((packed));
 
+    template<typename KEY>
+    struct byte_iterator {
+        static constexpr typename std::enable_if<std::has_unique_object_representations<KEY>::value, uchar&>::type access(KEY* data, size_t id)
+        {
+            return ((uchar*)data)[id];
+        }
+        
+        static constexpr typename std::enable_if<std::has_unique_object_representations<KEY>::value, const uchar&>::type const_access(const KEY* data, size_t id)
+        {
+            return ((const uchar*)data)[id];
+        }
+        
+        static constexpr typename std::enable_if<std::has_unique_object_representations<KEY>::value, size_t>::type element_size()
+        {
+            return sizeof(KEY);
+        }
+        
+        static constexpr bool continious()
+        {
+            return {std::has_unique_object_representations<KEY>::value};
+        }
+        
+        // add read_blob, write_blob
+    };
 
 #define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
     
@@ -81,6 +105,16 @@ namespace ptrie {
 
         struct fwdnode_t;
         struct node_t;
+        struct byteit_t {
+            size_t _el = 0;
+            size_t _bno = 0;
+            size_t _size = 0;
+            KEY* _data = nullptr;
+            uchar& operator[](size_t id)
+            {
+                return byte_iterator<KEY>::access(_data, id);
+            }
+        };
 
         static_assert(HEAPBOUND * (sizeof(fwdnode_t)/sizeof(size_t)) < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * (sizeof(fwdnode_t)/sizeof(fwdnode_t)) should be less than 2^16");
@@ -148,10 +182,10 @@ namespace ptrie {
         node_t* new_node();
         fwdnode_t* new_fwd();
 
-        base_t* fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte);
-        bool bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte);
+        base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte);
+        bool bucket_search(const KEY* data, size_t length, node_t* node, uint& b_index, uint byte);
 
-        bool best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index);
+        bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index);
 
         void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
@@ -188,7 +222,6 @@ namespace ptrie {
         returntype_t exists(binarywrapper_t wrapper);
         returntype_t exists(const KEY* data, size_t length);
         returntype_t exists(const KEY data) { return exists(&data, 1); }
-        bool         erase (binarywrapper_t wrapper);
         bool         erase (const KEY* data, size_t length);
         bool         erase (const KEY data) { return erase(&data, 1); }
         set(set&&) = default;
@@ -269,17 +302,17 @@ namespace ptrie {
 
     template<PTRIETPL>
     base_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const binarywrapper_t& encoding, fwdnode_t** tree_pos, uint& byte) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) {
         fwdnode_t* t_pos = *tree_pos;
 
-        uint16_t s = encoding.size(); // TODO remove minus to
+        uint16_t s = length*byte_iterator<KEY>::element_size(); // TODO remove minus to
         uchar* sc = (uchar*) & s;
 
         do {
             *tree_pos = t_pos;
 
             base_t* next;
-            if (byte >= 2) next = t_pos->_children[encoding[byte - 2]];
+            if (byte >= 2) next = t_pos->_children[byte_iterator<KEY>::const_access(data, byte - 2)];
             else next = t_pos->_children[sc[1 - byte]];
 
             assert(next != nullptr);
@@ -298,32 +331,32 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const binarywrapper_t& encoding, node_t* node, uint& b_index, uint byte) {
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
         const bool hasent = _entries != nullptr;
         bool found = false;
-
+        const auto size = length*byte_iterator<KEY>::element_size();
         uint16_t encsize;
-        if (encoding.size() > byte) {
-            encsize = byte > 0 ? encoding.size() - byte : encoding.size();
+        if (size > byte) {
+            encsize = byte > 0 ? size - byte : size;
         } else {
             encsize = 0;
         }
-        const uchar* raw = encoding.const_raw() + byte;
+        //const uchar* raw = encoding.const_raw() + byte;
         uint16_t first;
         uchar* tf = (uchar*) & first;
         if (byte <= 1) {
-            first = encoding.size();
+            first = size;
             if (byte == 1) {
                 first <<= 8;
-                tf[0] = encoding[0];
+                tf[0] = byte_iterator<KEY>::const_access(target, 0);
             }
         } else {
-            tf[1] = encoding[-2 + byte];
-            tf[0] = encoding[-2 + byte + 1];
+            tf[1] = byte_iterator<KEY>::const_access(target, -2 + byte);
+            tf[0] = byte_iterator<KEY>::const_access(target, -2 + byte + 1);
         }
 
         bucket_t* bucket = node->_data;
@@ -339,7 +372,7 @@ namespace ptrie {
                 if (f >= first) break;
                 if (byte > 1) bs = encsize;
                 else if (byte == 1) {
-                    bs = encoding.size();
+                    bs = size;
                     bsc[0] = fc[1];
                     bs -= 1;
 
@@ -369,14 +402,14 @@ namespace ptrie {
 
                 if (encsize < HEAPBOUND) {
                     for (; b < encsize; ++b) {
-                        if (data[offset + b] != raw[b]) break;
+                        if (data[offset + b] != byte_iterator<KEY>::const_access(target, b+byte)) break;
                     }
                     if (b == encsize) {
                         found = true;
                         break;
                     } else {
-                        assert(raw[b] != data[offset + b]);
-                        if (raw[b] < data[offset + b]) {
+                        assert(byte_iterator<KEY>::const_access(target, b+byte) != data[offset + b]);
+                        if (byte_iterator<KEY>::const_access(target, b+byte) < data[offset + b]) {
                             found = false;
                             break;
                         }
@@ -384,15 +417,30 @@ namespace ptrie {
                     }
                 } else {
                     uchar* ptr = *((uchar**) (&data[offset]));
-                    int cmp = memcmp(ptr, raw, encsize);
-                    if (cmp > 0) {
-                        found = false;
-                        break;
-                    }
+                    if constexpr(byte_iterator<KEY>::continious())
+                    {
+                        int cmp = memcmp(ptr, &byte_iterator<KEY>::const_access(target, byte), encsize);
+                        if (cmp > 0) {
+                            found = false;
+                            break;
+                        }
 
-                    if (cmp == 0) {
-                        found = true;
-                        break;
+                        if (cmp == 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // comp
+                        for(; b < encsize; ++b)
+                        {
+                            if(ptr[b] != byte_iterator<KEY>::const_access(target, b+byte))
+                            {
+                                found = false;
+                                break;
+                            }
+                        }
                     }
                 }
                 offset += bytes(encsize);
@@ -404,13 +452,13 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const binarywrapper_t& encoding, fwdnode_t** tree_pos, base_t** node,
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
             uint& byte, uint& b_index) {
         // run through tree as long as there are branches covering some of 
         // the encoding
-        *node = fast_forward(encoding, tree_pos, byte);
+        *node = fast_forward(data, length, tree_pos, byte);
         if((size_t)*node != (size_t)*tree_pos) {
-            return bucket_search(encoding, (node_t*)*node, b_index, byte);
+            return bucket_search(data, length, (node_t*)*node, b_index, byte);
         } else
         {
             return false;
@@ -857,7 +905,7 @@ namespace ptrie {
         uint byte = 0;
 
         b_index = 0;
-        bool res = best_match(encoding, &fwd, &base, byte, b_index);
+        bool res = best_match(data, length, &fwd, &base, byte, b_index);
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
         if((size_t)fwd != (size_t)base) {
             node_t* node = (node_t*)base;
@@ -886,7 +934,7 @@ namespace ptrie {
         base_t* base = nullptr;
         uint byte = 0;
 
-        bool res = best_match(e2, &fwd, &base, byte, b_index);
+        bool res = best_match(data, length, &fwd, &base, byte, b_index);
         if (res) { // We are not inserting duplicates, semantics of PTrie is a set.
             returntype_t ret(false, 0);
             if (hasent) {
@@ -1529,8 +1577,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(binarywrapper_t encoding)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
     {
+        binarywrapper_t encoding((uchar*) data, sizeof(KEY) * length * 8);
         assert(encoding.size() <= 65536);
         uint b_index = 0;
 
@@ -1539,7 +1588,7 @@ namespace ptrie {
         uint byte = 0;
 
         b_index = 0;
-        bool res = this->best_match(encoding, &fwd, &base, byte, b_index);
+        bool res = this->best_match(data, length, &fwd, &base, byte, b_index);
         if(!res || (size_t)fwd == (size_t)base)
         {
             assert(!this->exists(encoding).first);
@@ -1553,14 +1602,6 @@ namespace ptrie {
             assert(!this->exists(encoding).first);
             return true;
         }
-    }
-
-    template<PTRIETPL>
-    bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
-    {
-        binarywrapper_t b((uchar*)data, length*sizeof(KEY)*8);
-        return erase(b);
     }
 
 

@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByte)
     {
         binarywrapper_t data(8);
         data.raw()[0] = (uchar)i;
-        bool res = set.erase(data);
+        bool res = set.erase(data.raw(), data.size());
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
         auto exists = set.exists(data);
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
             data.raw()[0] = (uchar)(128 + (i/2));
 
         bool ok = true;
-        bool res = set.erase(data);
+        bool res = set.erase(data.raw(), data.size());
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
         ok &= res;
 
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
     {
         binarywrapper_t data(8);
         data.raw()[0] = (uchar)i;
-        bool res = set.erase(data);
+        bool res = set.erase(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
         auto exists = set.exists(data);
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
         else
             data.raw()[0] = (uchar)128 + (i/2);
 
-        bool res = set.erase(data);
+        bool res = set.erase(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
         auto exists = set.exists(data);
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 
         binarywrapper_t data = rand_data(seed, 16, 16);
         bool ok = true;
-        bool res = set.erase(data);
+        bool res = set.erase(data.raw(), data.size());
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
         ok &= res;
 
