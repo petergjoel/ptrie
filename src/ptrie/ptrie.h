@@ -893,10 +893,6 @@ namespace ptrie {
     std::pair<bool, size_t>
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const KEY* data, size_t length) {
         assert(length <= 65536);
-        binarywrapper_t encoding((uchar*) data, sizeof(KEY) * length * 8);
-        //        memcpy(encoding.raw()+2, data, length);
-        //        length += 2;
-        //        memcpy(encoding.raw(), &length, 2);
 
         uint b_index = 0;
 
@@ -1579,8 +1575,8 @@ namespace ptrie {
     bool
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
     {
-        binarywrapper_t encoding((uchar*) data, sizeof(KEY) * length * 8);
-        assert(encoding.size() <= 65536);
+        const auto size = length*byte_iterator<KEY>::element_size();
+        assert(size <= 65536);
         uint b_index = 0;
 
         fwdnode_t* fwd = this->_root.get();
@@ -1591,15 +1587,15 @@ namespace ptrie {
         bool res = this->best_match(data, length, &fwd, &base, byte, b_index);
         if(!res || (size_t)fwd == (size_t)base)
         {
-            assert(!this->exists(encoding).first);
+            assert(!this->exists(data, length).first);
             return false;
         }
         else
         {
-            int onheap = encoding.size();
+            int onheap = size;
             onheap -= byte;
             erase(fwd, (node_t *) base, b_index, onheap);
-            assert(!this->exists(encoding).first);
+            assert(!this->exists(data, length).first);
             return true;
         }
     }
