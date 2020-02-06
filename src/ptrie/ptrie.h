@@ -982,21 +982,12 @@ namespace ptrie {
             node = (node_t*)base;
         }
 
-
-        // shallow copy
-        binarywrapper_t nenc(e2.const_raw(),
-                (e2.size() - byte)*8,
-                byte * 8,
-                e2.size() * 8);
-
-//                std::cout << "COULD NOT FIND of size " << e2.size() << std::endl;
-//                e2.print(std::cout);
-//                std::cout << "Inserted into " << node << std::endl;
-
         // make a new bucket, add new entry, copy over old data
+        const auto nenc_size = e2.size()-byte;
 
+        
         uint nbucketcount = node->_count + 1;
-        uint nitemsize = nenc.size();
+        uint nitemsize = nenc_size;
         bool copyval = true;
         if (nitemsize >= HEAPBOUND) {
             copyval = false;
@@ -1041,7 +1032,7 @@ namespace ptrie {
 
 
         uint tmpsize = 0;
-        if (byte >= 2) tmpsize = b_index * bytes(nenc.size());
+        if (byte >= 2) tmpsize = b_index * bytes(nenc_size);
         else {
             uint16_t o = e2.size();
             for (size_t i = 0; i < b_index; ++i) {
@@ -1067,18 +1058,29 @@ namespace ptrie {
 
         // copy over new data
         if (copyval) {
-            memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize]),
-                    nenc.const_raw(), nenc.size());
+            if constexpr (byte_iterator<KEY>::continious())
+                memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize]),
+                        &byte_iterator<KEY>::const_access(data, byte), nenc_size);
+            else
+            {
+                for(size_t i = 0; i < nenc_size; ++i)
+                    nbucket->data(nbucketcount, hasent)[tmpsize+i] = 
+                            byte_iterator<KEY>::const_access(data, byte+i);
+            }
         } else {
             // alloc space
-            uchar* data = (uchar*) malloc(nenc.size());
+            uchar* dest = (uchar*) malloc(nenc_size);
 
             // copy data to heap
-            memcpy(data, nenc.const_raw(), nenc.size());
+            if constexpr (byte_iterator<KEY>::continious())
+                memcpy(dest, &byte_iterator<KEY>::const_access(data, byte), nenc_size);
+            else
+                for(size_t i = 0; i < nenc_size; ++i)
+                    dest[i] = byte_iterator<KEY>::const_access(data, byte+i);
 
             // copy pointer in
             memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize]),
-                    &data, sizeof (uchar*));
+                    &dest, sizeof (uchar*));
         }
 
         // if needed, split the node 
@@ -1094,7 +1096,7 @@ namespace ptrie {
             // copy over data to we can work while readers finish
             // we have to wait for readers to finish for 
             // tree extension
-            split_node(node, fwd, node, nenc.size(), byte);
+            split_node(node, fwd, node, nenc_size, byte);
         }
 
 #ifndef NDEBUG        
