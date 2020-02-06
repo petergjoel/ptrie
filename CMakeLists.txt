@@ -32,7 +32,6 @@ if(BUILD_TESTING AND PTRIE_BuildTests)
 	#testing
 	add_subdirectory(test)
 	enable_testing()
-	add_test(NAME Wrapper   COMMAND Wrapper)
 	add_test(NAME Set       COMMAND Set)
 	add_test(NAME Delete    COMMAND Delete)
 	add_test(NAME StableSet COMMAND StableSet)

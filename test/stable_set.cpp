@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 
         for(size_t i = 0; i < 1024*10; ++i) {
             binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.insert(data);
+            auto res = set.insert(data.raw(), data.size());
             BOOST_CHECK(res.first);
             ids.push_back(res.second);
             set.unpack(res.second, scratchpad.raw());
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 
         for(size_t i = 0; i < 1024*10; ++i) {
             binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.insert(data);
+            auto res = set.insert(data.raw(), data.size());
             BOOST_CHECK(res.first);
             ids.push_back(res.second);
             set.unpack(res.second, scratchpad.raw());

@@ -19,7 +19,7 @@
 #ifndef PTRIE_UTILS_H
 #define PTRIE_UTILS_H
 
-#include <ptrie/binarywrapper.h>
+#include "../test/binarywrapper.h"
 
 using namespace ptrie;
 

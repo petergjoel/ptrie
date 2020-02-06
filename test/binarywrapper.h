@@ -1,4 +1,4 @@
-/* VerifyPN - TAPAAL Petri Net Engine
+/* 
  * Copyright (C) 2016  Peter Gjøl Jensen <root@petergjoel.dk>
  * 
  * This program is free software: you can redistribute it and/or modify

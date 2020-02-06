@@ -1,4 +1,4 @@
-/* VerifyPN - TAPAAL Petri Net Engine
+/* 
  * Copyright (C) 2016  Peter Gjøl Jensen <root@petergjoel.dk>
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -33,7 +33,6 @@
 #include <functional>
 #include <memory>
 
-#include "binarywrapper.h"
 #include "linked_bucket.h"
 
 
@@ -216,10 +215,8 @@ namespace ptrie {
         set();
         ~set();
 
-        returntype_t insert(binarywrapper_t wrapper);
         returntype_t insert(const KEY* data, size_t length);
         returntype_t insert(const KEY data) { return insert(&data, 1); }
-        returntype_t exists(binarywrapper_t wrapper);
         returntype_t exists(const KEY* data, size_t length);
         returntype_t exists(const KEY data) { return exists(&data, 1); }
         bool         erase (const KEY* data, size_t length);
@@ -1110,21 +1107,8 @@ namespace ptrie {
 #endif
         return returntype_t(true, entry);
     }
-
-    template<PTRIETPL>
-    returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(binarywrapper_t wrapper) {
-        return insert(wrapper.raw(), wrapper.size());
-    }
-
-    template<PTRIETPL>
-    returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(binarywrapper_t wrapper) {
-        return exists(wrapper.raw(), wrapper.size());
-    }
-
     
-        template<PTRIETPL>
+    template<PTRIETPL>
     void
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {

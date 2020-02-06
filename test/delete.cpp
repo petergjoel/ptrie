@@ -41,14 +41,14 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByte)
         bool res = set.erase(data.raw(), data.size());
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.raw(), data.size());
         BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
 
         bool ok = true;
         for(int j = 0; j < 256; ++j)
         {
             data.raw()[0] = (uchar)j;
-            auto exists = set.exists(data);
+            auto exists = set.exists(data.raw(), data.size());
             if(j >= i)
             {
                 ok &= !exists.first;
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
         ok &= res;
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.raw(), data.size());
         ok &= !exists.first;
         BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
 
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
                 data.raw()[0] = (uchar)(127 - (j/2));
             else
                 data.raw()[0] = (uchar)(128 + (j/2));
-            auto exists = set.exists(data);
+            auto exists = set.exists(data.raw(), data.size());
             if(j < i) {
                 BOOST_CHECK_MESSAGE(exists.first,
                                     "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN " << data);
@@ -140,13 +140,13 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
         bool res = set.erase(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
 
         for(int j = 0; j < 256; ++j)
         {
             data.raw()[0] = j;
-            auto exists = set.exists(data);
+            auto exists = set.exists(data.raw(), data.size());
             if(j < i)
                 BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
             else
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
             for(int j = 0; j < i; ++j)
             {
                 data.raw()[0] = (uchar)j;
-                auto exists = set.exists(data);
+                auto exists = set.exists(data.raw(), data.size());
                 BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
             }
 
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
         bool res = set.erase(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.raw(), data.size());
         BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
 
         for(int j = 0; j < i; ++j)
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
                 data.raw()[0] = (uchar)127 - (j/2);
             else
                 data.raw()[0] = (uchar)128 + (j/2);
-            auto exists = set.exists(data);
+            auto exists = set.exists(data.raw(), data.size());
             BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
         }
         data.release();
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
         BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
         ok &= res;
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.raw(), data.size());
         ok &= !exists.first;
         BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
         data.release();
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
             else
                 s2 = (max/2) + (j/2);
             auto d2 = rand_data(s2, 16, 16);
-            auto exists = set.exists(d2);
+            auto exists = set.exists(d2.raw(), d2.size());
             if(j < i) {
                 BOOST_CHECK_MESSAGE(exists.first,
                                     "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN " << d2);
