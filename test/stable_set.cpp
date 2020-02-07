@@ -48,6 +48,10 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 
             BOOST_CHECK_EQUAL(data.second, size);
             BOOST_CHECK_EQUAL(memcmp(data.first.get(), scratchpad.get(), size), 0);
+            
+            auto key = set.unpack(ids[i]);
+            BOOST_CHECK_EQUAL(data.second, key.size());
+            BOOST_CHECK_EQUAL(memcmp(data.first.get(), key.data(), size), 0);
         }
     }
 }
@@ -77,6 +81,10 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 
             BOOST_CHECK_EQUAL(data.second, size);
             BOOST_CHECK_EQUAL(memcmp(data.first.get(), scratchpad.get(), size), 0);
+            
+            auto key = set.unpack(ids[i]);
+            BOOST_CHECK_EQUAL(data.second, key.size());
+            BOOST_CHECK_EQUAL(memcmp(data.first.get(), key.data(), size), 0);
         }
     }
 }
