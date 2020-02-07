@@ -58,16 +58,22 @@ namespace ptrie {
         }
 
         size_t unpack(I index, KEY* destination) const;
+        std::vector<KEY> unpack(I index) const;
+    protected:
+        typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
+        void write_data(KEY* destination, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
   };
 
     template<PTRIETPL>
-    size_t
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) const {
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t* 
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::
+    find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
+    {
         typename pt::node_t* node = nullptr;
         typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        
-        std::stack<uchar> path;
-        size_t bindex = 0;
+        
+        bindex = 0;
         {
 #ifndef NDEBUG
             bool found = false;
@@ -96,9 +102,9 @@ namespace ptrie {
             par = par->_parent;
         }
 
-        uint16_t size = 0;
-        size_t offset = 0;
-        size_t ps = path.size();
+        size = 0;
+        offset = 0;
+        ps = path.size();
         if (ps <= 1) {
             size = node->_data->first(0, bindex);
             if (ps == 1) {
@@ -120,7 +126,6 @@ namespace ptrie {
                     f -= 1;
                 }
                 offset += pt::bytes(f);
-                //                assert(bytes(f) == nbucket->bytes(i));
             }
         } else {
             uchar* bs = (uchar*) & size;
@@ -129,9 +134,14 @@ namespace ptrie {
             bs[0] = path.top();
             path.pop();
             offset = (pt::bytes(size - ps) * bindex);
-        }
-
-
+        }        
+        return node;
+    }
+    
+    template<PTRIETPL>
+    void
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::write_data(KEY* dest, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
+    {
         if (size > ps) {
             uchar* src;
             if ((size - ps) >= HEAPBOUND) {
@@ -165,10 +175,32 @@ namespace ptrie {
             }
             byte_iterator<KEY>::access(dest, pos) = fc[0];
             ++pos;
-        }
-        
+        }        
+    }
+  
+    template<PTRIETPL>
+    size_t
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) const {
+        size_t bindex, ps, offset;
+        uint16_t size;
+        std::stack<uchar> path;
+        auto node = find_metadata(index, path, bindex, offset, ps, size);
+        write_data(dest, node, path, bindex, offset, ps, size);        
         return size/sizeof(KEY);
     }
+    
+    template<PTRIETPL>
+    std::vector<KEY>
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index) const {
+        size_t bindex, ps, offset;
+        uint16_t size;
+        std::stack<uchar> path;
+        auto node = find_metadata(index, path, bindex, offset, ps, size);
+        std::vector<KEY> destination(size/sizeof(KEY));
+        write_data(destination.data(), node, path, bindex, offset, ps, size);        
+        return destination;   
+    }
+    
 }
 
 #undef pt
