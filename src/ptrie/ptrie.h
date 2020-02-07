@@ -1091,7 +1091,6 @@ namespace ptrie {
 #ifndef NDEBUG        
         for (int i = byte - 1; i >= 2; --i) {
             assert(fwd != nullptr);
-            assert(e2[-2 + i] == fwd->_path);
             assert(fwd->_parent == nullptr || fwd->_parent->_children[fwd->_path] == fwd);
             fwd = fwd->_parent;
 
