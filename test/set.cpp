@@ -27,59 +27,64 @@ BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
     try_insert(set,
-              [](size_t i){
-                  binarywrapper_t data;
-                  return data;
-              },
-            1);
+               [](size_t i)
+               {
+                   auto data = std::make_unique<unsigned char[]>(0);
+                   return std::make_pair(std::move(data), 0);
+               },
+               1);
 }
 
 BOOST_AUTO_TEST_CASE(InsertByte)
 {
     set<> set;
     try_insert(set,
-              [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
-              },
-            256);
+               [](size_t i)
+               {
+                   auto data = std::make_unique<unsigned char[]>(1);
+                   data[0] = (uchar) i;
+                   return std::make_pair(std::move(data), 1);
+               },
+               256);
 }
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<unsigned char, 128,4> set;
+    set<unsigned char, 128, 4> set;
     try_insert(set,
-              [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
-              },
-            256);
+               [](size_t i)
+               {
+                   auto data = std::make_unique<unsigned char[]>(1);
+                   data[0] = (uchar) i;
+                   return std::make_pair(std::move(data), 1);
+               },
+               256);
 }
 
 BOOST_AUTO_TEST_CASE(HeapTest)
 {
-    set<unsigned char, sizeof(size_t)+1> set;
+    set<unsigned char, sizeof (size_t) + 1 > set;
     try_insert(set,
-              [](size_t i){
-                  binarywrapper_t data;
-                  data.copy((uchar*)&i, sizeof(size_t));
-                  return data;
-              },
-            1024);
+               [](size_t i)
+               {
+                   auto data = std::make_unique<unsigned char[]>(sizeof (size_t));
+                   memcpy(data.get(), &i, sizeof (size_t));
+                   return std::make_pair(std::move(data), sizeof (size_t));
+               },
+               1024);
 }
 
 BOOST_AUTO_TEST_CASE(InsertMill)
 {
     set<> set;
     try_insert(set,
-              [](size_t i){
-                  binarywrapper_t data;
-                  data.copy((uchar*)&i, sizeof(size_t));
-                  return data;
-              },
-            1024*1024);
+               [](size_t i)
+               {
+                   auto data = std::make_unique<unsigned char[]>(sizeof (size_t));
+                   memcpy(data.get(), &i, sizeof (size_t));
+                   return std::make_pair(std::move(data), sizeof (size_t));
+               },
+               1024 * 1024);
 }
 
 BOOST_AUTO_TEST_CASE(PseudoRand1)

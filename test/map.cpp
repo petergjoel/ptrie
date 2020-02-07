@@ -32,21 +32,19 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
         ptrie::map<size_t> set;
 
         for(size_t i = 0; i < 1024*10; ++i) {
-            binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.insert(data.raw(), data.size());
+            auto data = rand_data(i + seed, 20);
+            auto res = set.insert(data.first.get(), data.second);
             BOOST_CHECK(res.first);
             set.get_data(res.second) = i;
-            data.release();
         }
 
         // let us unwrap everything and check that it is there!
 
         for(size_t i = 0; i < 1024*10; ++i) {
-            binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.exists(data.raw(), data.size());
+            auto data = rand_data(i + seed, 20);
+            auto res = set.exists(data.first.get(), data.second);
             BOOST_CHECK(res.first);
             BOOST_CHECK_EQUAL(set.get_data(res.second), i);
-            data.release();
         }
     }
 }
@@ -92,21 +90,19 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
     for(size_t seed = 512; seed < (512+10); ++seed) {
         ptrie::map<size_t, unsigned char,sizeof(size_t ) + 1, 4> set;
         for(size_t i = 0; i < 1024*10; ++i) {
-            binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.insert(data.raw(), data.size());
+            auto data = rand_data(i + seed, 20);
+            auto res = set.insert(data.first.get(), data.second);
             BOOST_CHECK(res.first);
             set.get_data(res.second) = i;
-            data.release();
         }
 
         // let us unwrap everything and check that it is there!
 
         for(size_t i = 0; i < 1024*10; ++i) {
-            binarywrapper_t data = rand_data(i + seed, 20);
-            auto res = set.exists(data.raw(), data.size());
+            auto data = rand_data(i + seed, 20);
+            auto res = set.exists(data.first.get(), data.second);
             BOOST_CHECK(res.first);
             BOOST_CHECK_EQUAL(set.get_data(res.second), i);
-            data.release();
         }
     }
 }

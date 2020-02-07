@@ -30,7 +30,7 @@
 #include <set>
 #include "MurmurHash2.h"
 #include "utils.h"
-#include "../test/binarywrapper.h"
+#include "binarywrapper.h"
 
 size_t reorder(size_t el, std::vector<size_t>& order, size_t seed)
 {

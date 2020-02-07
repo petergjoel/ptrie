@@ -28,7 +28,7 @@
 #include <unordered_set>
 #include "MurmurHash2.h"
 #include "utils.h"
-#include "../test/binarywrapper.h"
+#include "binarywrapper.h"
 
 using namespace ptrie;
 
