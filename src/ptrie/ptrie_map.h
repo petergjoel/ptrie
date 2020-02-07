@@ -57,7 +57,7 @@ namespace ptrie {
             return get_data(insert(key.first, key.second).second);
         }
 
-        T& operator[](const std::vector<KEY*>& key)
+        T& operator[](const std::vector<KEY>& key)
         {
             return get_data(insert(key.data(), key.size()).second);
         }

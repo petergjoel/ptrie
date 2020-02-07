@@ -181,3 +181,42 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
         }
     }
 }
+
+
+BOOST_AUTO_TEST_CASE(ComplexType1Vector)
+{
+    for(size_t seed = 1337; seed < (1337+10); ++seed) {
+        set_stable<type_t> set;
+        vector<size_t> ids;
+        std::vector<type_t> scratchpad(10);
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(i + seed);
+            std::vector<type_t> test(10);
+            for(size_t i = 0; i < 10; ++i)
+                test[i] = type_t{(char)rand(), (int)rand(), (char)rand(), (int)rand()};
+            auto res = set.insert(test);
+            BOOST_CHECK(res.first);
+            ids.push_back(res.second);
+            auto size = set.unpack(res.second, scratchpad.data());
+
+            BOOST_CHECK_EQUAL(10, size);
+            BOOST_CHECK(std::equal(test.begin(), test.end(), scratchpad.begin()));
+        }
+
+        // let us unwrap everything and check that it is there!
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(i + seed);
+            std::vector<type_t> test(10);
+            for(size_t i = 0; i < 10; ++i)
+                test[i] = type_t{(char)rand(), (int)rand(), (char)rand(), (int)rand()};
+            auto size = set.unpack(ids[i], scratchpad.data());
+
+            BOOST_CHECK_EQUAL(10, size);
+            BOOST_CHECK(std::equal(test.begin(), test.end(), scratchpad.begin()));
+            
+            auto key = set.unpack(ids[i]);
+            BOOST_CHECK_EQUAL(10, key.size());
+            BOOST_CHECK(std::equal(test.begin(), test.end(), key.begin()));
+        }
+    }
+}

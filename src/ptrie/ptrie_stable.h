@@ -59,6 +59,7 @@ namespace ptrie {
 
         size_t unpack(I index, KEY* destination) const;
         std::vector<KEY> unpack(I index) const;
+        void unpack(I index, std::vector<KEY>& destination) const;
     protected:
         typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
         void write_data(KEY* destination, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
@@ -200,7 +201,17 @@ namespace ptrie {
         write_data(destination.data(), node, path, bindex, offset, ps, size);        
         return destination;   
     }
-    
+
+    template<PTRIETPL>
+    void
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, std::vector<KEY>& dest) const {
+        size_t bindex, ps, offset;
+        uint16_t size;
+        std::stack<uchar> path;
+        auto node = find_metadata(index, path, bindex, offset, ps, size);
+        dest.resize(size/byte_iterator<KEY>::element_size());
+        write_data(dest.data(), node, path, bindex, offset, ps, size);        
+    }    
 }
 
 #undef pt

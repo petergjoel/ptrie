@@ -204,21 +204,20 @@ namespace ptrie {
         set();
         ~set();
 
-        returntype_t insert(KEY* data, size_t length);
-        returntype_t insert(KEY data)                      { return insert(&data, 1); }
-        returntype_t insert(std::pair<KEY*, size_t> data)  { return insert(data.first, data.second); }
-        returntype_t insert(const std::vector<KEY*>& data) { return insert(data.data(), data.size()); }
+        returntype_t insert(const KEY* data, size_t length);
+        returntype_t insert(const KEY data)                      { return insert(&data, 1); }
+        returntype_t insert(std::pair<const KEY*, size_t> data)  { return insert(data.first, data.second); }
+        returntype_t insert(const std::vector<KEY>& data)        { return insert(data.data(), data.size()); }
 
-
-        returntype_t exists(KEY* data, size_t length) const;
-        returntype_t exists(KEY data) const                      { return exists(&data, 1); }
-        returntype_t exists(std::pair<KEY*, size_t> data) const  { return exists(data.first, data.second); }
-        returntype_t exists(const std::vector<KEY*>& data) const { return exists(data.data(), data.size()); }
-                
-        bool         erase (KEY* data, size_t length);
-        bool         erase (KEY data)                      { return erase(&data, 1); }
-        bool         erase (std::pair<KEY*, size_t> data)  { return erase(data.first, data.second); }
-        bool         erase (const std::vector<KEY*>& data) { return erase(data.data(), data.size()); }
+        returntype_t exists(const KEY* data, size_t length) const;
+        returntype_t exists(const KEY data) const                      { return exists(&data, 1); }
+        returntype_t exists(std::pair<const KEY*, size_t> data) const  { return exists(data.first, data.second); }
+        returntype_t exists(const std::vector<KEY>& data) const        { return exists(data.data(), data.size()); }
+        
+        bool         erase (const KEY* data, size_t length);
+        bool         erase (const KEY data)                      { return erase(&data, 1); }
+        bool         erase (std::pair<const KEY*, size_t> data)  { return erase(data.first, data.second); }
+        bool         erase (const std::vector<KEY>& data)        { return erase(data.data(), data.size()); }
         
         set(set&&) = default;
         set& operator=(set&&) = default;
@@ -887,7 +886,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(KEY* data, size_t length) const {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const KEY* data, size_t length) const {
         assert(length <= 65536);
 
         uint b_index = 0;
@@ -910,7 +909,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(KEY* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
         const auto size = byte_iterator<KEY>::element_size() * length;
         const bool hasent = _entries != nullptr;
@@ -1552,7 +1551,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(KEY *data, size_t length)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
     {
         const auto size = length*byte_iterator<KEY>::element_size();
         assert(size <= 65536);
