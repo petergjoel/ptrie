@@ -186,7 +186,7 @@ namespace ptrie {
         std::stack<uchar> path;
         auto node = find_metadata(index, path, bindex, offset, ps, size);
         write_data(dest, node, path, bindex, offset, ps, size);        
-        return size/sizeof(KEY);
+        return size/byte_iterator<KEY>::element_size();
     }
     
     template<PTRIETPL>
@@ -196,7 +196,7 @@ namespace ptrie {
         uint16_t size;
         std::stack<uchar> path;
         auto node = find_metadata(index, path, bindex, offset, ps, size);
-        std::vector<KEY> destination(size/sizeof(KEY));
+        std::vector<KEY> destination(size/byte_iterator<KEY>::element_size());
         write_data(destination.data(), node, path, bindex, offset, ps, size);        
         return destination;   
     }

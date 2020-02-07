@@ -89,3 +89,95 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
     }
 }
 
+
+
+
+struct type_t {
+    char _a;
+    int _b;
+    char _c;
+    int _d;
+    bool operator==(const type_t& other) const
+    {
+        return _a == other._a && _b == other._b && _c == other._c && _d == other._d;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const type_t& el)
+    {
+        std::cerr << (int)el._a << ", " << el._b << ", " << (int)el._c << ", " << el._d;
+        return os;
+    }
+};
+
+template<>
+struct ptrie::byte_iterator<type_t>
+{
+    static constexpr uchar& access(type_t* data, size_t id)
+    {
+        auto el = id / element_size();
+        assert(el == 0);
+        assert(id < element_size());
+        id = id % element_size();
+        switch(id){
+        case 0:
+            return (uchar&)data[el]._a;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            return ((uchar*)&data[el]._b)[id-1];
+        case 5:
+            return (uchar&)data[el]._c;
+        default:
+            return ((uchar*)&data[el]._d)[id-6];
+        }
+    }
+
+    static constexpr const uchar& const_access(const type_t* data, size_t id)
+    {
+        return access(const_cast<type_t*>(data), id);
+    }
+
+    static constexpr size_t element_size()
+    {
+        return sizeof(char)*2+sizeof(int)*2;
+    }
+    
+    static constexpr bool continious(){
+        return {false};
+    }
+};
+
+
+BOOST_AUTO_TEST_CASE(ComplexType1)
+{
+    for(size_t seed = 1337; seed < (1337+10); ++seed) {
+        set_stable<type_t> set;
+        vector<size_t> ids;
+        type_t scratchpad;
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(i + seed);
+            type_t test({(char)rand(), (int)rand(), (char)rand(), (int)rand()});
+            auto res = set.insert(test);
+            BOOST_CHECK(res.first);
+            ids.push_back(res.second);
+            auto size = set.unpack(res.second, &scratchpad);
+
+            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(test, scratchpad);
+        }
+
+        // let us unwrap everything and check that it is there!
+        for(size_t i = 0; i < 1024*10; ++i) {
+            srand(i + seed);
+            type_t test({(char)rand(), (int)rand(), (char)rand(), (int)rand()});
+            auto size = set.unpack(ids[i], &scratchpad);
+
+            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(test, scratchpad);
+            
+            auto key = set.unpack(ids[i]);
+            BOOST_CHECK_EQUAL(1, key.size());
+            BOOST_CHECK(key.back() == test);
+        }
+    }
+}

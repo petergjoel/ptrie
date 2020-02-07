@@ -116,8 +116,7 @@ namespace ptrie {
 
         static_assert(HEAPBOUND > sizeof(size_t),
                 "HEAPBOUND MUST BE LARGER THAN sizeof(size_t)");
-        
-        static_assert(std::has_unique_object_representations<KEY>::value);
+                
     protected:
 
         typedef ptrie_el_t<T, I> entry_t;
@@ -913,7 +912,7 @@ namespace ptrie {
     returntype_t
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(KEY* data, size_t length) {
         assert(length <= 65536);
-        const auto size = sizeof(KEY) * length;
+        const auto size = byte_iterator<KEY>::element_size() * length;
         const bool hasent = _entries != nullptr;
         uint b_index = 0;
 
