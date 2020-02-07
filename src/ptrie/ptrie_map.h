@@ -49,17 +49,17 @@ namespace ptrie {
         T& get_data(I index);
         T& operator[](KEY key)
         {
-            return get_data(insert(key).second);
+            return get_data(pt::insert(key).second);
         }
         
         T& operator[](std::pair<KEY*, size_t> key)
         {
-            return get_data(insert(key.first, key.second).second);
+            return get_data(pt::insert(key.first, key.second).second);
         }
 
         T& operator[](const std::vector<KEY>& key)
         {
-            return get_data(insert(key.data(), key.size()).second);
+            return get_data(pt::insert(key.data(), key.size()).second);
         }
     };
 

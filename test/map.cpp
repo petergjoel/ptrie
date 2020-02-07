@@ -101,6 +101,8 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
         for(size_t i = 0; i < 1024*10; ++i) {
             auto data = rand_data(i + seed, 20);
             auto res = set.exists(data.first.get(), data.second);
+            auto d = set[{data.first.get(), data.second}];
+            BOOST_CHECK_EQUAL(d, i);
             BOOST_CHECK(res.first);
             BOOST_CHECK_EQUAL(set.get_data(res.second), i);
         }
