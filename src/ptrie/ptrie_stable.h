@@ -57,12 +57,12 @@ namespace ptrie {
             return this->_entries->size();
         }
 
-        size_t unpack(I index, KEY* destination);
+        size_t unpack(I index, KEY* destination) const;
   };
 
     template<PTRIETPL>
     size_t
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) {
+    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) const {
         typename pt::node_t* node = nullptr;
         typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        

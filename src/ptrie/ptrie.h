@@ -181,10 +181,10 @@ namespace ptrie {
         node_t* new_node();
         fwdnode_t* new_fwd();
 
-        base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte);
-        bool bucket_search(const KEY* data, size_t length, node_t* node, uint& b_index, uint byte);
+        base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const;
+        bool bucket_search(const KEY* data, size_t length, node_t* node, uint& b_index, uint byte) const;
 
-        bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index);
+        bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index) const;
 
         void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
@@ -221,10 +221,10 @@ namespace ptrie {
         returntype_t insert(const std::vector<KEY*>& data) { return insert(data.data(), data.size()); }
 
 
-        returntype_t exists(KEY* data, size_t length);
-        returntype_t exists(KEY data)                      { return exists(&data, 1); }
-        returntype_t exists(std::pair<KEY*, size_t> data)  { return exists(data.first, data.second); }
-        returntype_t exists(const std::vector<KEY*>& data) { return exists(data.data(), data.size()); }
+        returntype_t exists(KEY* data, size_t length) const;
+        returntype_t exists(KEY data) const                      { return exists(&data, 1); }
+        returntype_t exists(std::pair<KEY*, size_t> data) const  { return exists(data.first, data.second); }
+        returntype_t exists(const std::vector<KEY*>& data) const { return exists(data.data(), data.size()); }
                 
         bool         erase (KEY* data, size_t length);
         bool         erase (KEY data)                      { return erase(&data, 1); }
@@ -309,7 +309,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     base_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const {
         fwdnode_t* t_pos = *tree_pos;
 
         uint16_t s = length*byte_iterator<KEY>::element_size(); // TODO remove minus to
@@ -338,7 +338,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) {
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) const {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
@@ -460,7 +460,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
-            uint& byte, uint& b_index) {
+            uint& byte, uint& b_index) const {
         // run through tree as long as there are branches covering some of 
         // the encoding
         *node = fast_forward(data, length, tree_pos, byte);
@@ -898,7 +898,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(KEY* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(KEY* data, size_t length) const {
         assert(length <= 65536);
 
         uint b_index = 0;
