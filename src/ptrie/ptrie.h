@@ -104,16 +104,6 @@ namespace ptrie {
 
         struct fwdnode_t;
         struct node_t;
-        struct byteit_t {
-            size_t _el = 0;
-            size_t _bno = 0;
-            size_t _size = 0;
-            KEY* _data = nullptr;
-            uchar& operator[](size_t id)
-            {
-                return byte_iterator<KEY>::access(_data, id);
-            }
-        };
 
         static_assert(HEAPBOUND * (sizeof(fwdnode_t)/sizeof(size_t)) < std::numeric_limits<uint16_t>::max(),
                 "HEAPBOUND * (sizeof(fwdnode_t)/sizeof(fwdnode_t)) should be less than 2^16");
