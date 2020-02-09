@@ -29,7 +29,7 @@ using namespace std;
 BOOST_AUTO_TEST_CASE(PseudoRand1)
 {
     for(size_t seed = 314; seed < (314+10); ++seed) {
-        ptrie::map<size_t> set;
+        ptrie::map<ptrie::uchar, size_t> set;
 
         for(size_t i = 0; i < 1024*10; ++i) {
             auto data = rand_data(i + seed, 20);
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1Key)
     auto data = std::make_unique<int32_t[]>(mx);
     auto unpack = std::make_unique<int32_t[]>(mx);
     for(size_t seed = 314; seed < (314+10); ++seed) {
-        ptrie::map<size_t,int32_t> set;
+        ptrie::map<int32_t, size_t> set;
 
         for(size_t i = 0; i < 1024*10; ++i) {
             srand(seed+i);
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1Key)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 512; seed < (512+10); ++seed) {
-        ptrie::map<size_t, unsigned char,sizeof(size_t ) + 1, 4> set;
+        ptrie::map<unsigned char,size_t,sizeof(size_t ) + 1, 4> set;
         for(size_t i = 0; i < 1024*10; ++i) {
             auto data = rand_data(i + seed, 20);
             auto res = set.insert(data.first.get(), data.second);
@@ -168,7 +168,7 @@ struct ptrie::byte_iterator<type_t>
 BOOST_AUTO_TEST_CASE(ComplexType1)
 {
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
-        ptrie::map<size_t, type_t> cont;
+        ptrie::map<type_t,size_t> cont;
         vector<size_t> ids;
         type_t scratchpad;
         for(size_t i = 0; i < 1024*10; ++i) {
