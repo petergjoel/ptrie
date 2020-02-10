@@ -44,7 +44,7 @@
 namespace ptrie {
     typedef uint32_t uint;
     typedef unsigned char uchar;
-
+    constexpr auto WIDTH = 256;
     template<typename D, typename N>
     struct ptrie_el_t {
         N node;
@@ -120,7 +120,7 @@ namespace ptrie {
     protected:
 
         typedef ptrie_el_t<T, I> entry_t;
-
+        
         struct bucket_t {
 
             bucket_t() {
@@ -158,7 +158,7 @@ namespace ptrie {
         } __attribute__((packed));
 
         struct fwdnode_t : public base_t {
-            base_t* _children[256];
+            base_t* _children[WIDTH];
             fwdnode_t* _parent;
 
         } __attribute__((packed));
@@ -233,7 +233,7 @@ namespace ptrie {
         {
             fwdnode_t* next = stack.top();
             stack.pop();
-            for(size_t i = 0; i < 256; ++i)
+            for(size_t i = 0; i < WIDTH; ++i)
             {
                 base_t* child = next->_children[i];
                 if(child != next)
@@ -274,7 +274,7 @@ namespace ptrie {
         _root->_path = 0;
 
         size_t i = 0;
-        for (; i < 256; ++i) _root->_children[i] = _root.get();
+        for (; i < WIDTH; ++i) _root->_children[i] = _root.get();
     }
 
     template<PTRIETPL>
@@ -477,7 +477,7 @@ namespace ptrie {
         node->_type = 1;
 
 
-        for (size_t i = 0; i < 256; ++i) fwd_n->_children[i] = (locked == nullptr ? node : locked);
+        for (size_t i = 0; i < WIDTH; ++i) fwd_n->_children[i] = (locked == nullptr ? node : locked);
 
         jumppar->_children[fwd_n->_path] = fwd_n;
 
@@ -641,13 +641,13 @@ namespace ptrie {
                 memcpy(node->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
             free(bucket);
             lown._data = nullptr;
-            for (size_t i = 0; i < 128; ++i) fwd_n->_children[i] = fwd_n;
+            for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = fwd_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
             if (hasent)
                 memcpy(lown._data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
-            for (size_t i = 128; i < 256; ++i) fwd_n->_children[i] = fwd_n;
+            for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = fwd_n;
             free(bucket);
             node->_data = lown._data;
             node->_path = lown._path;
@@ -662,7 +662,7 @@ namespace ptrie {
             low_n->_count = lown._count;
             low_n->_path = lown._path;
             low_n->_type = lown._type;
-            for (size_t i = 0; i < 128; ++i) fwd_n->_children[i] = low_n;
+            for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = low_n;
             if (hasent) {
                 // We are stopping splitting here, so correct entries if needed
                 I* ents = bucket->entries(bucketsize, true);
@@ -1147,7 +1147,7 @@ namespace ptrie {
             if(node->_count < SPLITBOUND/3) return true;
             if(node->_count == 0)
             {
-                for(size_t i = 0; i < 256; ++i) parent->_children[i] = parent;
+                for(size_t i = 0; i < WIDTH; ++i) parent->_children[i] = parent;
                 delete node;
                 do {
                     if (parent != this->_root.get()) {
@@ -1158,7 +1158,7 @@ namespace ptrie {
                         delete parent;
                         parent = next;
                         base_t* other = parent;
-                        for(size_t i = 0; i < 256; ++i)
+                        for(size_t i = 0; i < WIDTH; ++i)
                         {
                             if(parent->_children[i] != parent && other != parent->_children[i])
                             {
@@ -1199,7 +1199,7 @@ namespace ptrie {
                 // we need to re-add path to items here.
                 if(parent->_parent == this->_root.get()) {
                     // something
-                    uint16_t sizes[256];
+                    uint16_t sizes[WIDTH];
                     size_t totsize = 0;
                     for(size_t i = 0; i < node->_count; ++i)
                     {
