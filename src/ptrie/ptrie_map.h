@@ -43,7 +43,8 @@ namespace ptrie {
         using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
 #endif
     public:
-        using pt::set_stable;
+        using typename pt::set_stable;
+        map() : pt() {};
         map(map&&) = default;
         map& operator=(map&&) = default;
         T& get_data(I index);

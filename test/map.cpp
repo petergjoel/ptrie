@@ -160,7 +160,7 @@ struct ptrie::byte_iterator<type_t>
     }
     
     static constexpr bool continious(){
-        return {false};
+        return false;
     }
 };
 

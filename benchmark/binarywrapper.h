@@ -263,7 +263,7 @@ namespace ptrie
          */        
         friend bool operator<=(const binarywrapper_t &enc1, 
                                const binarywrapper_t &enc2) {
-            return enc2 <= enc1;
+            return enc2 >= enc1;
         }
         
     private:
