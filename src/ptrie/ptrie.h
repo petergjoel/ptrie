@@ -247,7 +247,7 @@ namespace ptrie {
                     {
                         node_t* node = (node_t*) child;
                         // TODO: we should delete data here also!
-                        free(node->_data);
+                        delete[] (uchar*)node->_data;
                         delete node;
                     }
                 }
@@ -532,14 +532,14 @@ namespace ptrie {
         node->_totsize = hsize > 0 ? hsize : 0;
         node->_count = hcnt;
         if (hcnt == 0) node->_data = nullptr;
-        else node->_data = (bucket_t*) malloc(node->_totsize + 
-                bucket_t::overhead(node->_count, hasent));
+        else node->_data = (bucket_t*) new uchar[node->_totsize + 
+                bucket_t::overhead(node->_count, hasent)];
 
         lown._totsize = lsize > 0 ? lsize : 0;
         lown._count = lcnt;
         if (lcnt == 0) lown._data = nullptr;
-        else lown._data = (bucket_t*) malloc(lown._totsize +
-                bucket_t::overhead(lown._count, hasent));
+        else lown._data = (bucket_t*) new uchar[lown._totsize +
+                bucket_t::overhead(lown._count, hasent)];
 
         // copy values
         int lbcnt = 0;
@@ -552,7 +552,7 @@ namespace ptrie {
                 if (lengths[i] > 0) {
                     uchar* dest = &(lown._data->data(lown._count, hasent)[lbcnt]);
                     if (LLENGTH(i) >= HEAPBOUND) {
-                        uchar* data = (uchar*) malloc(LLENGTH(i));
+                        uchar* data = new uchar[LLENGTH(i)];
                         memcpy(dest, &data, sizeof (uchar*));
                         dest = data;
                     }
@@ -579,7 +579,7 @@ namespace ptrie {
                             assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
                         }
 #endif
-                        free(src);
+                        delete[] src;
                     }
                     lbcnt += bytes(LLENGTH(i));
                 }
@@ -589,7 +589,7 @@ namespace ptrie {
                 if (lengths[i] > 0) {
                     uchar* dest = &(node->_data->data(node->_count, hasent)[hbcnt]);
                     if (LLENGTH(i) >= HEAPBOUND) {
-                        uchar* data = (uchar*) malloc(LLENGTH(i));
+                        uchar* data = new uchar[LLENGTH(i)];
                         memcpy(dest, &data, sizeof (uchar*));
                         dest = data;
                     }
@@ -617,7 +617,7 @@ namespace ptrie {
                             assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
                         }
 #endif
-                        free(src);
+                        delete[] src;
                     }
                 }
 
@@ -639,7 +639,7 @@ namespace ptrie {
         if (lcnt == 0) {
             if (hasent)
                 memcpy(node->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
-            free(bucket);
+            delete[] (uchar*)bucket;
             lown._data = nullptr;
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = fwd_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
@@ -648,7 +648,7 @@ namespace ptrie {
             if (hasent)
                 memcpy(lown._data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
             for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = fwd_n;
-            free(bucket);
+            delete[] (uchar*)bucket;
             node->_data = lown._data;
             node->_path = lown._path;
             node->_count = lown._count;
@@ -672,7 +672,7 @@ namespace ptrie {
                     else node->_data->entries(node->_count, true)[i - lown._count] = ents[i];
                 }
             }
-            free(bucket);
+            delete[] (uchar*)bucket;
             if(lown._count >= SPLITBOUND && lown._count >= node->_count)
             {
                 split_node(low_n, fwd_n, nullptr, bsize > 0 ? bsize - 1 : 0, byte + 1);
@@ -811,10 +811,10 @@ namespace ptrie {
                 jumppar->_children[i] = h_node;
             }
 
-            h_node->_data = (bucket_t*) malloc(h_node->_totsize + 
-                    bucket_t::overhead(h_node->_count, hasent));
-            node->_data = (bucket_t*) malloc(node->_totsize + 
-                    bucket_t::overhead(node->_count, hasent));
+            h_node->_data = (bucket_t*) new uchar[h_node->_totsize + 
+                    bucket_t::overhead(h_node->_count, hasent)];
+            node->_data = (bucket_t*) new uchar[node->_totsize + 
+                    bucket_t::overhead(node->_count, hasent)];
 
             // copy firsts
             memcpy(&node->_data->first(node->_count), &(old->first(bucketsize)), sizeof (uint16_t) * node->_count);
@@ -833,7 +833,7 @@ namespace ptrie {
                 }
             }
 
-            free(old);
+            delete[] (uchar*)old;
             if(node->_count >= SPLITBOUND && node->_count >= h_node->_count)
             {
                 split_node(node, jumppar, locked, bsize, byte);
@@ -946,8 +946,8 @@ namespace ptrie {
 
         uint nbucketsize = node->_totsize + nitemsize;
 
-        bucket_t* nbucket = (bucket_t*) malloc(nbucketsize + 
-                bucket_t::overhead(nbucketcount, hasent));
+        bucket_t* nbucket = (bucket_t*) new uchar[nbucketsize + 
+                bucket_t::overhead(nbucketcount, hasent)];
 
         // copy over old "firsts"
         memcpy(&nbucket->first(nbucketcount), &(node->_data->first(node->_count)), b_index * sizeof (uint16_t));
@@ -1018,7 +1018,7 @@ namespace ptrie {
             }
         } else {
             // alloc space
-            uchar* dest = (uchar*) malloc(nenc_size);
+            uchar* dest = new uchar[nenc_size];
 
             // copy data to heap
             if constexpr (byte_iterator<KEY>::continious())
@@ -1033,7 +1033,7 @@ namespace ptrie {
         }
 
         // if needed, split the node 
-        free(node->_data);
+        delete[] (uchar*)node->_data;
         node->_data = nbucket;
         node->_count = nbucketcount;
         node->_totsize = nbucketsize;
@@ -1069,9 +1069,9 @@ namespace ptrie {
         const bool hasent = _entries != nullptr;
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
-            nbucket = (bucket_t *) malloc(totsize +
+            nbucket = (bucket_t *) new uchar[totsize +
                                           bucket_t::overhead(node->_count,
-                                                             hasent));
+                                                             hasent)];
         }
 
         size_t dcnt = 0;
@@ -1103,7 +1103,7 @@ namespace ptrie {
                 else if(size >= HEAPBOUND)
                 {
                     uchar* src = nullptr;
-                    uchar* dest = (uchar*)malloc(size);
+                    uchar* dest = new uchar[size];
                     memcpy(&(nbucket->data(node->_count, hasent)[dcnt]), &dest, sizeof(size_t));
                     ++dest;
                     dcnt += sizeof(size_t);
@@ -1131,7 +1131,7 @@ namespace ptrie {
         assert(ocnt == node->_totsize);
         assert(totsize == dcnt);
 
-        if(nbucket != node->_data) free(node->_data);
+        if(nbucket != node->_data) delete[] (uchar*)node->_data;
 
         node->_data = nbucket;
     }
@@ -1332,8 +1332,8 @@ namespace ptrie {
                     if (nbucketcount >= SPLITBOUND)
                         return false;
 
-                    bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
-                                                            bucket_t::overhead(nbucketcount, hasent));
+                    bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
+                                                            bucket_t::overhead(nbucketcount, hasent)];
                     node_t *first = node;
                     node_t *second = other;
                     if (path & masks[node->_type - 1]) {
@@ -1368,7 +1368,7 @@ namespace ptrie {
                                second->_data->data(second->_count, hasent), second->_totsize);
 
                     }
-                    free(node->_data);
+                    delete[] (uchar*)node->_data;
                     node->_data = nbucket;
                     node->_totsize = nbucketsize;
                     node->_count = nbucketcount;
@@ -1445,7 +1445,7 @@ namespace ptrie {
         {
             before = sizeof(size_t)*bindex;
             uchar* src = *((uchar**)&(node->_data->data(node->_count, hasent)[before]));
-            free(src);
+            delete[] src;
             size = sizeof(size_t);
         }
 
@@ -1453,8 +1453,8 @@ namespace ptrie {
         if(nbucketcount > 0) {
             uint nbucketsize = node->_totsize - size;
 
-            bucket_t *nbucket = (bucket_t *) malloc(nbucketsize +
-                                                    bucket_t::overhead(nbucketcount, hasent));
+            bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
+                                                    bucket_t::overhead(nbucketcount, hasent)];
 
             // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
             memcpy(&nbucket->first(nbucketcount),
@@ -1488,7 +1488,7 @@ namespace ptrie {
                        (nbucketsize - before));
 
             }
-            free(node->_data);
+            delete[] (uchar*)node->_data;
             node->_data = nbucket;
             node->_count = nbucketcount;
             node->_totsize -= size;
@@ -1496,7 +1496,7 @@ namespace ptrie {
         }
         else
         {
-            free(node->_data);
+            delete[] (uchar*)node->_data;
             node->_data = nullptr;
             node->_count = 0;
             node->_totsize = 0;
