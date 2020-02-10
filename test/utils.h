@@ -19,37 +19,31 @@
 #ifndef PTRIE_UTILS_H
 #define PTRIE_UTILS_H
 
-#include <ptrie/binarywrapper.h>
-
-using namespace ptrie;
-
 template<typename T, typename G>
 void try_insert(T& trie, G generator, size_t N)
 {
     for(size_t i = 0; i < N; ++i)
     {
-        binarywrapper_t data = generator(i);
-        auto exists = trie.exists(data.raw(), data.size());
+        auto data = generator(i);
+        auto exists = trie.exists(data.first.get(), data.second);
         BOOST_REQUIRE_MESSAGE(!exists.first,
-                              "FAILED ON INSERT " << i << " BIN " << data << " ");
+                              "FAILED ON INSERT " << i);
 
-        auto inserted = trie.insert(data.raw(), data.size());
+        auto inserted = trie.insert(data.first.get(), data.second);
         BOOST_REQUIRE_MESSAGE(inserted.first,
-                              "EXIST FAILED FOR " << i << " BIN " << data << " ");
-        data.release();
+                              "EXIST FAILED FOR " << i);
     }
 
     for(size_t i = 0; i < N; ++i) {
-        binarywrapper_t data = generator(i);
-        auto exists = trie.exists(data.raw(), data.size());
+        auto data = generator(i);
+        auto exists = trie.exists(data.first.get(), data.second);
         BOOST_REQUIRE_MESSAGE(exists.first,
-                              "POST EXIST CHECK FAILED FOR " << i << " BIN " << data << " ");
-        data.release();
+                              "POST EXIST CHECK FAILED FOR " << i);
     }
 
 }
 
-ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t))
+std::pair<std::unique_ptr<unsigned char[]>, size_t> rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t))
 {
     assert(minsize >= sizeof(size_t));
     srand(seed);
@@ -58,15 +52,15 @@ ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = s
                   minsize + rand() % (maxsize - minsize) :
                   minsize;
 
-    binarywrapper_t data(size * 8);
+    auto data = std::make_unique<unsigned char[]>(size);
     // fill in random data
     for (size_t j = 0; j < size; ++j) {
-        data.raw()[j] = (uchar) rand();
+        data[j] = (unsigned char) rand();
     }
     // make sure everything is unique
     for (size_t j = 1; j <= sizeof(size_t); ++j) {
-        data.raw()[size - j] = ((uchar *) &seed)[j - 1];
+        data[size - j] = ((unsigned char *) &seed)[j - 1];
     }
-    return data;
+    return std::make_pair(std::move(data), size);
 }
 #endif //PTRIE_UTILS_H

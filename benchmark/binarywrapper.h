@@ -1,4 +1,4 @@
-/* VerifyPN - TAPAAL Petri Net Engine
+/* 
  * Copyright (C) 2016  Peter Gjøl Jensen <root@petergjoel.dk>
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -62,35 +62,10 @@ namespace ptrie
         
         binarywrapper_t(uint size);
         
-        /**
-         * Constructor for copying over data from latest the offset'th bit.
-         * Detects overflows.
-         * @param other: wrapper to copy from
-         * @param offset: maximal number of bits to skip.
-         */
-        
-        binarywrapper_t(const binarywrapper_t& other, uint offset);
-        
-        inline void init(const binarywrapper_t& other, uint size, uint offset, 
-                                                            uint encodingsize)
-        {
-            uint so = size + offset;
-            offset = ((so - 1) / 8) - ((size - 1) / 8);
-
-            _nbytes = ((encodingsize + this->overhead(encodingsize)) / 8);
-            if (_nbytes > offset)
-                _nbytes -= offset;
-            else {
-                _nbytes = 0;
-            }
-
-            _blob = allocate(_nbytes);
-
-            memcpy(raw(), &(other.const_raw()[offset]), _nbytes);
+        ~binarywrapper_t()
+        {        
         }
         
-        
-        binarywrapper_t(uchar* raw, uint size, uint offset, uint encsize);
 	
 	/**
          * Assign (not copy) raw data to pointer. Set number of bytes to size
@@ -99,60 +74,6 @@ namespace ptrie
          */
         
         binarywrapper_t(uchar* raw, uint size);
-        
-        /**
-         * Empty destructor. Does NOT deallocate data - do this with explicit
-         * call to release().
-         */
-        
-        ~binarywrapper_t()
-        {        
-        }
-        
-        /**
-         * Makes a complete copy, including new heap-allocation
-         * @return an exact copy, but in a different area of the heap.
-         */
-        
-        //binarywrapper_t clone() const;
-
-        /**
-         * Copy over data and meta-data from other, but insert only into target
-         * after offset bits.
-         * Notice that this can cause memory-corruption if there is not enough
-         * room in target, or to many bits are skipped.
-         * @param other: wrapper to copy from
-         * @param offset: bits to skip
-         */
-
-        void copy(const binarywrapper_t& other, uint offset);
-
-        /**
-         * Copy over size bytes form raw data. Assumes that current wrapper has
-         * enough room.
-         * @param raw: source data
-         * @param size: number of bytes to copy
-         */
-
-        void copy(const uchar* raw, uint size);
-
-        // accessors
-        /**
-         * Get value of the place'th bit
-         * @param place: bit index
-         * @return 
-         */
-        inline bool at(const uint place) const
-        {
-            uint offset = place % 8;
-            bool res2;
-            if (place / 8 < _nbytes)
-                res2 = (const_raw()[place / 8] & _masks[offset]) != 0;
-            else
-                res2 = false;
-
-            return res2;  
-        } 
         
         /**
          * number of bytes allocated in heap
@@ -186,25 +107,7 @@ namespace ptrie
             return const_raw();
         }
 
-        /**
-         * pretty print of content
-         */
-        
-        void print(std::ostream& strean, size_t length = std::numeric_limits<size_t>::max()) const;
-        
-        /**
-         * finds the overhead (unused number of bits) when allocating for size
-         * bits.
-         * @param size: number of bits
-         * @return 
-         */
-        
-        static size_t overhead(uint size);
-        
-        
-        static size_t bytes(uint size);
-        // modifiers
-        /**
+        /*
          * Change value of place'th bit 
          * @param place: index of bit to change
          * @param value: desired value
@@ -216,23 +119,38 @@ namespace ptrie
             uint offset = place % 8;
             uint theplace = place / 8;
             if (value) {
-                const_raw()[theplace] |= _masks[offset];
+                const_raw()[theplace] |= (0x80 >> offset);
             } else {
-                const_raw()[theplace] &= ~_masks[offset];
+                const_raw()[theplace] &= ~(0x80 >> offset);
             }    
-        }   
+        } 
+
+        /**
+         * Get value of the place'th bit
+         * @param place: bit index
+         * @return 
+         */
+        inline bool at(const uint place) const
+        {
+            uint offset = place % 8;
+            bool res2;
+            if (place / 8 < _nbytes)
+                res2 = (const_raw()[place / 8] & (0x80 >> offset)) != 0;
+            else
+                res2 = false;
+
+            return res2;  
+        } 
         
         /**
-         * Sets all memory on heap to 0 
+         * finds the overhead (unused number of bits) when allocating for size
+         * bits.
+         * @param size: number of bits
+         * @return 
          */
+
         
-        inline void zero() const
-        {
-            if(_nbytes > 0 && _blob != nullptr)
-            {
-                memset(const_raw(), 0x0, _nbytes); 
-            }
-        }
+        static size_t overhead(uint size);
         
         /**
          * Deallocates memory stored on heap
@@ -348,21 +266,8 @@ namespace ptrie
             return enc2 <= enc1;
         }
         
-        const static uchar _masks[8];
     private:
          
-        static inline uchar* allocate(size_t n)
-        {
-            if(n <= __BW_BSIZE__) return 0;
-#ifndef NDEBUG
-            size_t on = n;
-#endif            
-            if(n % __BW_BSIZE__ != 0) n = (1+(n/__BW_BSIZE__))*(__BW_BSIZE__);
-            assert(n % __BW_BSIZE__ == 0);
-            assert(on <= n);
-            return (uchar*)malloc(n);
-        }
-        
         static inline uchar* zallocate(size_t n)
         {
             if(n <= __BW_BSIZE__) return 0;
@@ -399,9 +304,6 @@ namespace ptrie
                
         // masks for single-bit access
      } __attribute__((packed));
-}
-namespace std {
-    std::ostream &operator<<(std::ostream &os, const ptrie::binarywrapper_t &b);
 }
 #endif	/* BINARYWRAPPER_H */
 

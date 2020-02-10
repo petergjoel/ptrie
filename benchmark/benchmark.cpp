@@ -28,6 +28,8 @@
 #include <unordered_set>
 #include "MurmurHash2.h"
 #include "utils.h"
+#include "binarywrapper.h"
+
 using namespace ptrie;
 
 ptrie::binarywrapper_t rand_data(size_t seed, size_t maxsize, size_t minsize = sizeof(size_t), size_t mv = 256)
@@ -145,7 +147,7 @@ void set_insert_ptrie(T& set, size_t elements, size_t seed, size_t bytes, double
     for(size_t i = 0; i < elements; ++i)
     {
         auto data = rand_data(seed + i, bytes, bytes, mv);
-        set.insert(data);
+        set.insert(data.raw(), data.size());
         data.release();
 
         if(read_rate > 0.0)
@@ -155,7 +157,7 @@ void set_insert_ptrie(T& set, size_t elements, size_t seed, size_t bytes, double
             {
                 size_t el = read_el(read_generator);
                 data = rand_data(seed + el, bytes, bytes, mv);
-                set.exists(data);
+                set.exists(data.raw(), data.size());
                 data.release();
             }
         }

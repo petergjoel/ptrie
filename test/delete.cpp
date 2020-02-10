@@ -29,42 +29,39 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByte)
     set_stable<> set;
     try_insert(set,
               [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
+                  auto data = std::make_unique<unsigned char[]>(1);
+                  data[0] = (uchar)i;
+                  return std::make_pair(std::move(data), 1);
               },
             256);
     for(int i = 255; i >= 0; --i)
     {
-        binarywrapper_t data(8);
-        data.raw()[0] = (uchar)i;
-        bool res = set.erase(data);
-        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        auto data = std::make_unique<unsigned char[]>(1);
+        data[0] = (uchar)i;
+        bool res = set.erase(data.get(), 1);
+        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i );
 
-        auto exists = set.exists(data);
-        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        auto exists = set.exists(data.get(), 1);
+        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i );
 
         bool ok = true;
         for(int j = 0; j < 256; ++j)
         {
-            data.raw()[0] = (uchar)j;
-            auto exists = set.exists(data);
+            data[0] = (uchar)j;
+            auto exists = set.exists(data.get(), 1);
             if(j >= i)
             {
                 ok &= !exists.first;
                 BOOST_CHECK_MESSAGE(!exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " REINTRODUCED " << j << " BIN "
-                                                                 << data);
+                                    "FAILED ON DELETE, REMOVED " << i << " REINTRODUCED " << j );
             }
             else {
                 ok &= exists.first;
                 BOOST_CHECK_MESSAGE(exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN "
-                                                                 << data);
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j );
             }
         }
         BOOST_REQUIRE(ok);
-        data.release();
     }
 }
 
@@ -74,50 +71,49 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
     set_stable<> set;
     try_insert(set,
               [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
+                  auto data = std::make_unique<unsigned char[]>(1);
+                  data[0] = (uchar)i;
+                  return std::make_pair(std::move(data), 1);
               },
             256);
     for(int i = 255; i >= 0; --i)
     {
-        binarywrapper_t data(8);
+        auto data = std::make_unique<unsigned char[]>(8);
         if(i % 2)
-            data.raw()[0] = (uchar)(127 - (i/2));
+            data[0] = (uchar)(127 - (i/2));
         else
-            data.raw()[0] = (uchar)(128 + (i/2));
+            data[0] = (uchar)(128 + (i/2));
 
         bool ok = true;
-        bool res = set.erase(data);
-        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        bool res = set.erase(data.get(), 1);
+        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i);
         ok &= res;
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.get(), 1);
         ok &= !exists.first;
-        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i);
 
         for(int j = 0; j < 256; ++j)
         {
             if(j % 2)
-                data.raw()[0] = (uchar)(127 - (j/2));
+                data[0] = (uchar)(127 - (j/2));
             else
-                data.raw()[0] = (uchar)(128 + (j/2));
-            auto exists = set.exists(data);
+                data[0] = (uchar)(128 + (j/2));
+            auto exists = set.exists(data.get(), 1);
             if(j < i) {
                 BOOST_CHECK_MESSAGE(exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN " << data);
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j);
                 ok &= exists.first;
             }
             else
             {
                 BOOST_CHECK_MESSAGE(!exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " BUT REINTRODUCED " << j << " BIN " << data);
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT REINTRODUCED " << j);
                 ok &= !exists.first;
             }
 
         }
         BOOST_REQUIRE(ok);
-        data.release();
     }
 }
 
@@ -125,88 +121,84 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
 {
-    set_stable<sizeof(size_t)+1, 4> set;
+    set_stable<unsigned char, sizeof(size_t)+1, 4> set;
     try_insert(set,
               [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
+                  auto data = std::make_unique<unsigned char[]>(1);
+                  data[0] = (uchar)i;
+                  return std::make_pair(std::move(data), 1);
               },
             256);
     for(int i = 255; i >= 0; --i)
     {
-        binarywrapper_t data(8);
-        data.raw()[0] = (uchar)i;
-        bool res = set.erase(data);
-        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        auto data = std::make_unique<unsigned char[]>(1);
+        data[0] = (uchar)i;
+        bool res = set.erase(data.get(), 1);
+        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i);
 
-        auto exists = set.exists(data);
-        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        auto exists = set.exists(data.get(), 1);
+        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i);
 
         for(int j = 0; j < 256; ++j)
         {
-            data.raw()[0] = j;
-            auto exists = set.exists(data);
+            data[0] = j;
+            auto exists = set.exists(data.get(), 1);
             if(j < i)
-                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j);
             else
-                BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE " << i << ", REINTRODUCED " << j << " BIN " << data << " ");
+                BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE " << i << ", REINTRODUCED " << j);
 
             for(int j = 0; j < i; ++j)
             {
-                data.raw()[0] = (uchar)j;
-                auto exists = set.exists(data);
-                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+                data[0] = (uchar)j;
+                auto exists = set.exists(data.get(), 1);
+                BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j);
             }
-
-
         }
-        data.release();
     }
 }
 
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 {
-    set_stable<sizeof(size_t)+1, 4> set;
+    set_stable<unsigned char, sizeof(size_t)+1, 4> set;
     try_insert(set,
               [](size_t i){
-                  binarywrapper_t data(8);
-                  data.raw()[0] = (uchar)i;
-                  return data;
+                  auto data = std::make_unique<unsigned char[]>(1);
+                  data[0] = (uchar)i;
+                  return std::make_pair(std::move(data), 1);
               },
             256);
     for(int i = 255; i >= 0; --i)
     {
-        binarywrapper_t data(8);
+        auto data = std::make_unique<unsigned char[]>(1);
         if(i % 2)
-            data.raw()[0] = (uchar)127 - (i/2);
+            data[0] = (uchar)127 - (i/2);
         else
-            data.raw()[0] = (uchar)128 + (i/2);
+            data[0] = (uchar)128 + (i/2);
 
-        bool res = set.erase(data);
-        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        bool res = set.erase(data.get(), 1);
+        BOOST_REQUIRE_MESSAGE(res, "FAILED ON DELETE " << i);
 
-        auto exists = set.exists(data);
-        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
+        auto exists = set.exists(data.get(), 1);
+        BOOST_REQUIRE_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i);
 
         for(int j = 0; j < i; ++j)
         {
             if(j % 2)
-                data.raw()[0] = (uchar)127 - (j/2);
+                data[0] = (uchar)127 - (j/2);
             else
-                data.raw()[0] = (uchar)128 + (j/2);
-            auto exists = set.exists(data);
-            BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j  << " BIN " << data);
+                data[0] = (uchar)128 + (j/2);
+            auto exists = set.exists(data.get(), 1);
+            BOOST_REQUIRE_MESSAGE(exists.first, "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j);
         }
-        data.release();
     }
 }
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
     const int max = 8000;
-    set_stable<sizeof(size_t)+1,4> set;
+    set_stable<unsigned char, sizeof(size_t)+1,4> set;
     try_insert(set,
               [](size_t i){
                   return rand_data(i, 16, 16);
@@ -221,16 +213,15 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
             seed = (max/2) + (i/2);
 
 
-        binarywrapper_t data = rand_data(seed, 16, 16);
+        auto data = rand_data(seed, 16, 16);
         bool ok = true;
-        bool res = set.erase(data);
-        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i << " BIN " << data << " ");
+        bool res = set.erase(data.first.get(), data.second);
+        BOOST_CHECK_MESSAGE(res, "FAILED ON DELETE " << i);
         ok &= res;
 
-        auto exists = set.exists(data);
+        auto exists = set.exists(data.first.get(), data.second);
         ok &= !exists.first;
-        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i << " BIN " << data << " ");
-        data.release();
+        BOOST_CHECK_MESSAGE(!exists.first, "FAILED ON DELETE, STILL EXISTS " << i);
         for(int j = std::max(0, i - 100); j < std::min(i + 100, max); ++j)
         {
             int s2 = 0;
@@ -239,19 +230,18 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
             else
                 s2 = (max/2) + (j/2);
             auto d2 = rand_data(s2, 16, 16);
-            auto exists = set.exists(d2);
+            auto exists = set.exists(d2.first.get(), d2.second);
             if(j < i) {
                 BOOST_CHECK_MESSAGE(exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j << " BIN " << d2);
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT ALSO DELETED " << j);
                 ok &= exists.first;
             }
             else
             {
                 BOOST_CHECK_MESSAGE(!exists.first,
-                                    "FAILED ON DELETE, REMOVED " << i << " BUT REINTRODUCED " << j << " BIN " << d2);
+                                    "FAILED ON DELETE, REMOVED " << i << " BUT REINTRODUCED " << j);
                 ok &= !exists.first;
             }
-            d2.release();
         }
         BOOST_REQUIRE(ok);
     }
