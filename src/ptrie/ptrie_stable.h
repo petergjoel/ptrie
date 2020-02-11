@@ -30,6 +30,7 @@
 
 namespace ptrie {
 
+    #define SPTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
     template<
     typename KEY = unsigned char,
     uint16_t HEAPBOUND = 128,
@@ -38,8 +39,8 @@ namespace ptrie {
     typename T = void,
     typename I = size_t
     >
-    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
-        using pt = set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
+    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true> {
+        using pt = set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>;
     public:
         set_stable() : pt()
         {
@@ -57,12 +58,12 @@ namespace ptrie {
         std::vector<KEY> unpack(I index) const;
         void unpack(I index, std::vector<KEY>& destination) const;
     protected:
-        typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
+        typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
         void write_data(KEY* destination, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
   };
 
-    template<PTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t* 
+    template<SPTRIETPL>
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>::node_t* 
     set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::
     find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
     {
@@ -79,7 +80,7 @@ namespace ptrie {
             par = (typename pt::fwdnode_t*)ent.node;
             node = (typename pt::node_t*)par->_children[ent.path];
             typename pt::bucket_t* bckt = node->_data;
-            I* ents = bckt->entries(node->_count, true);
+            I* ents = bckt->entries(node->_count);
             for (size_t i = 0; i < node->_count; ++i) {
                 if (ents[i] == index) {
                     bindex = i;
@@ -91,8 +92,6 @@ namespace ptrie {
             }
             assert(found);
         }
-
-
 
         while (par != this->_root.get()) {
             path.push(par->_path);
@@ -135,16 +134,16 @@ namespace ptrie {
         return node;
     }
     
-    template<PTRIETPL>
+    template<SPTRIETPL>
     void
     set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::write_data(KEY* dest, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
     {
         if (size > ps) {
             uchar* src;
             if ((size - ps) >= HEAPBOUND) {
-                src = *((uchar**)&(node->_data->data(node->_count, true)[offset]));
+                src = *((uchar**)&(node->_data->data(node->_count)[offset]));
             } else {
-                src = &(node->_data->data(node->_count, true)[offset]);
+                src = &(node->_data->data(node->_count)[offset]);
             }
 
             if constexpr (byte_iterator<KEY>::continious())
@@ -175,7 +174,7 @@ namespace ptrie {
         }        
     }
   
-    template<PTRIETPL>
+    template<SPTRIETPL>
     size_t
     set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) const {
         size_t bindex, ps, offset;
@@ -186,7 +185,7 @@ namespace ptrie {
         return size/byte_iterator<KEY>::element_size();
     }
     
-    template<PTRIETPL>
+    template<SPTRIETPL>
     std::vector<KEY>
     set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index) const {
         size_t bindex, ps, offset;
@@ -198,7 +197,7 @@ namespace ptrie {
         return destination;   
     }
 
-    template<PTRIETPL>
+    template<SPTRIETPL>
     void
     set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, std::vector<KEY>& dest) const {
         size_t bindex, ps, offset;

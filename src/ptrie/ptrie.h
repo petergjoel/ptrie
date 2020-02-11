@@ -89,7 +89,7 @@ namespace ptrie {
         // add read_blob, write_blob
     };
 
-#define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
+#define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I, bool HAS_ENTRIES
     
     template<
     typename KEY = uchar,
@@ -97,7 +97,8 @@ namespace ptrie {
     uint16_t SPLITBOUND = 129,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
-    typename I = size_t
+    typename I = size_t,
+    bool HAS_ENTRIES = false
     >
     class set {
     protected:
@@ -127,23 +128,23 @@ namespace ptrie {
             }
             uchar _data;
 
-            static inline size_t overhead(size_t count, bool hasent) {
-                if (hasent)
+            static constexpr size_t overhead(size_t count) {
+                if (HAS_ENTRIES)
                     return count * (sizeof (uint16_t) + sizeof (I));
                 else
                     return count * (sizeof (uint16_t));
             }
 
-            inline I* entries(uint16_t count, bool hasent) {
-                if (hasent) return (I*) (data(0, hasent) + (count * (sizeof (uint16_t))));
+            constexpr I* entries(uint16_t count) {
+                if (HAS_ENTRIES) return (I*) (data(0) + (count * (sizeof (uint16_t))));
                 else return nullptr;
             }
 
-            inline uchar* data(uint16_t count, bool hasent) {
-                return ((uchar*) (&_data)) + overhead(count, hasent);
+            constexpr uchar* data(uint16_t count) {
+                return ((uchar*) (&_data)) + overhead(count);
             }
 
-            inline uint16_t& first(uint16_t count = 0, uint16_t index = 0) {
+            constexpr uint16_t& first(uint16_t count = 0, uint16_t index = 0) {
                 return ((uint16_t*) &_data)[index];
             }
 
@@ -225,7 +226,7 @@ namespace ptrie {
     };
 
     template<PTRIETPL>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::~set() {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::~set() {
         std::stack<fwdnode_t*> stack;
         if(_root != nullptr)
             stack.push(_root.get());
@@ -260,10 +261,10 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::init()
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::init()
     {
         _entries = nullptr;
-        if(_entries != nullptr)
+        if constexpr (HAS_ENTRIES)
         {
             _entries = std::make_unique<linked_bucket_t<entry_t, ALLOCSIZE>>(1);
         }
@@ -278,26 +279,26 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::set()
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::set()
     {
         init();
     }
 
     template<PTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::node_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_node() {
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::node_t*
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::new_node() {
         return new node_t;
     }
 
     template<PTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fwdnode_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::new_fwd() {
+    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fwdnode_t*
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::new_fwd() {
         return new fwdnode_t;
     }
 
     template<PTRIETPL>
     base_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const {
         fwdnode_t* t_pos = *tree_pos;
 
         uint16_t s = length*byte_iterator<KEY>::element_size(); // TODO remove minus to
@@ -326,12 +327,11 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) const {
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) const {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
-        const bool hasent = _entries != nullptr;
         bool found = false;
         const auto size = length*byte_iterator<KEY>::element_size();
         uint16_t encsize;
@@ -383,7 +383,7 @@ namespace ptrie {
             if (b_index >= node->_count ||
                     bucket->first(node->_count, b_index) > first) return false;
 
-            uchar* data = bucket->data(node->_count, hasent);
+            uchar* data = bucket->data(node->_count);
             for (; b_index < node->_count; ++b_index) {
 
                 size_t b = 0;
@@ -444,7 +444,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
             uint& byte, uint& b_index) const {
         // run through tree as long as there are branches covering some of 
         // the encoding
@@ -459,11 +459,10 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         const uint16_t bucketsize = node->_count;
         if(bucketsize < (sizeof(fwdnode_t) / sizeof(size_t))) return;
-        const bool hasent = _entries != nullptr;
         node_t lown;
         fwdnode_t* fwd_n = new_fwd();
 
@@ -533,13 +532,13 @@ namespace ptrie {
         node->_count = hcnt;
         if (hcnt == 0) node->_data = nullptr;
         else node->_data = (bucket_t*) new uchar[node->_totsize + 
-                bucket_t::overhead(node->_count, hasent)];
+                bucket_t::overhead(node->_count)];
 
         lown._totsize = lsize > 0 ? lsize : 0;
         lown._count = lcnt;
         if (lcnt == 0) lown._data = nullptr;
         else lown._data = (bucket_t*) new uchar[lown._totsize +
-                bucket_t::overhead(lown._count, hasent)];
+                bucket_t::overhead(lown._count)];
 
         // copy values
         int lbcnt = 0;
@@ -550,7 +549,7 @@ namespace ptrie {
             if (i < lown._count) {
                 lown._data->first(lown._count, i) = (bucket->first(bucketsize, i) << 8);
                 if (lengths[i] > 0) {
-                    uchar* dest = &(lown._data->data(lown._count, hasent)[lbcnt]);
+                    uchar* dest = &(lown._data->data(lown._count)[lbcnt]);
                     if (LLENGTH(i) >= HEAPBOUND) {
                         uchar* data = new uchar[LLENGTH(i)];
                         memcpy(dest, &data, sizeof (uchar*));
@@ -559,9 +558,9 @@ namespace ptrie {
 
                     uchar* src;
                     if (lengths[i] >= HEAPBOUND) {
-                        src = *((uchar**)&(bucket->data(bucketsize, hasent)[bcnt]));
+                        src = *((uchar**)&(bucket->data(bucketsize)[bcnt]));
                     } else {
-                        src = &(bucket->data(bucketsize, hasent)[bcnt]);
+                        src = &(bucket->data(bucketsize)[bcnt]);
                     }
 
                     uchar* f = (uchar*)&(lown._data->first(lown._count, i));
@@ -574,7 +573,7 @@ namespace ptrie {
                     if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
                         if (LLENGTH(i) >= HEAPBOUND) {
-                            uchar* tmp = *((uchar**)&(lown._data->data(lown._count, hasent)[lbcnt]));
+                            uchar* tmp = *((uchar**)&(lown._data->data(lown._count)[lbcnt]));
                             assert(tmp == dest);
                             assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
                         }
@@ -587,7 +586,7 @@ namespace ptrie {
                 int j = i - lown._count;
                 node->_data->first(node->_count, j) = (bucket->first(bucketsize, i) << 8);
                 if (lengths[i] > 0) {
-                    uchar* dest = &(node->_data->data(node->_count, hasent)[hbcnt]);
+                    uchar* dest = &(node->_data->data(node->_count)[hbcnt]);
                     if (LLENGTH(i) >= HEAPBOUND) {
                         uchar* data = new uchar[LLENGTH(i)];
                         memcpy(dest, &data, sizeof (uchar*));
@@ -596,9 +595,9 @@ namespace ptrie {
 
                     uchar* src;
                     if (lengths[i] < HEAPBOUND) {
-                        src = &(bucket->data(bucketsize, hasent)[bcnt]);
+                        src = &(bucket->data(bucketsize)[bcnt]);
                     } else {
-                        src = *((uchar**)&(bucket->data(bucketsize, hasent)[bcnt]));
+                        src = *((uchar**)&(bucket->data(bucketsize)[bcnt]));
                     }
 
                     uchar* f = (uchar*) & node->_data->first(node->_count, j);
@@ -612,7 +611,7 @@ namespace ptrie {
                     if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
                         if (LLENGTH(i) >= HEAPBOUND) {
-                            uchar* tmp = *((uchar**)&(node->_data->data(node->_count, hasent)[hbcnt]));
+                            uchar* tmp = *((uchar**)&(node->_data->data(node->_count)[hbcnt]));
                             assert(tmp == dest);
                             assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
                         }
@@ -627,8 +626,8 @@ namespace ptrie {
             bcnt += bytes(lengths[i]);
         }
 
-        if (hasent) {
-            I* ents = bucket->entries(bucketsize, true);
+        if constexpr (HAS_ENTRIES) {
+            I* ents = bucket->entries(bucketsize);
             for (size_t i = 0; i < bucketsize; ++i) {
                 entry_t& ent = _entries->operator[](ents[i]);
                 ent.node = (size_t)fwd_n;
@@ -637,16 +636,16 @@ namespace ptrie {
         }
 
         if (lcnt == 0) {
-            if (hasent)
-                memcpy(node->_data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
+            if constexpr (HAS_ENTRIES)
+                memcpy(node->_data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
             delete[] (uchar*)bucket;
             lown._data = nullptr;
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = fwd_n;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         }
         else if (hcnt == 0) {
-            if (hasent)
-                memcpy(lown._data->entries(bucketsize, true), bucket->entries(bucketsize, true), bucketsize * sizeof (I));
+            if constexpr (HAS_ENTRIES)
+                memcpy(lown._data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
             for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = fwd_n;
             delete[] (uchar*)bucket;
             node->_data = lown._data;
@@ -663,13 +662,13 @@ namespace ptrie {
             low_n->_path = lown._path;
             low_n->_type = lown._type;
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = low_n;
-            if (hasent) {
+            if constexpr (HAS_ENTRIES) {
                 // We are stopping splitting here, so correct entries if needed
-                I* ents = bucket->entries(bucketsize, true);
+                I* ents = bucket->entries(bucketsize);
 
                 for (size_t i = 0; i < bucketsize; ++i) {
-                    if (i < lown._count) lown._data->entries(lown._count, true)[i] = ents[i];
-                    else node->_data->entries(node->_count, true)[i - lown._count] = ents[i];
+                    if (i < lown._count) lown._data->entries(lown._count)[i] = ents[i];
+                    else node->_data->entries(node->_count)[i - lown._count] = ents[i];
                 }
             }
             delete[] (uchar*)bucket;
@@ -685,7 +684,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte) {
 
         assert(bsize != std::numeric_limits<size_t>::max());
         if (node->_type == 8) // new fwd node!
@@ -769,8 +768,6 @@ namespace ptrie {
 
         node->_type += 1;
 
-        const bool hasent = _entries != nullptr;
-
         if (node->_count == 0) // only high node has data
         {
             for(size_t i = node->_path; i < hnode._path; ++i)
@@ -812,24 +809,24 @@ namespace ptrie {
             }
 
             h_node->_data = (bucket_t*) new uchar[h_node->_totsize + 
-                    bucket_t::overhead(h_node->_count, hasent)];
+                    bucket_t::overhead(h_node->_count)];
             node->_data = (bucket_t*) new uchar[node->_totsize + 
-                    bucket_t::overhead(node->_count, hasent)];
+                    bucket_t::overhead(node->_count)];
 
             // copy firsts
             memcpy(&node->_data->first(node->_count), &(old->first(bucketsize)), sizeof (uint16_t) * node->_count);
             memcpy(&h_node->_data->first(h_node->_count), &(old->first(bucketsize, node->_count)), sizeof (uint16_t) * h_node->_count);
 
             // copy data
-            memcpy(node->_data->data(node->_count, hasent), old->data(bucketsize, hasent), node->_totsize);
-            memcpy(h_node->_data->data(h_node->_count, hasent), &(old->data(bucketsize, hasent)[node->_totsize]), h_node->_totsize);
+            memcpy(node->_data->data(node->_count), old->data(bucketsize), node->_totsize);
+            memcpy(h_node->_data->data(h_node->_count), &(old->data(bucketsize)[node->_totsize]), h_node->_totsize);
 
-            if (hasent) {
-                I* ents = old->entries(bucketsize, true);
+            if constexpr (HAS_ENTRIES) {
+                I* ents = old->entries(bucketsize);
 
                 for (size_t i = 0; i < bucketsize; ++i) {
-                    if (i < node->_count) node->_data->entries(node->_count, true)[i] = ents[i];
-                    else h_node->_data->entries(h_node->_count, true)[i - node->_count] = ents[i];
+                    if (i < node->_count) node->_data->entries(node->_count)[i] = ents[i];
+                    else h_node->_data->entries(h_node->_count)[i - node->_count] = ents[i];
                 }
             }
 
@@ -847,7 +844,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::exists(const KEY* data, size_t length) const {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::exists(const KEY* data, size_t length) const {
         assert(length <= 65536);
 
         uint b_index = 0;
@@ -861,8 +858,8 @@ namespace ptrie {
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
         if((size_t)fwd != (size_t)base) {
             node_t* node = (node_t*)base;
-            if (_entries != nullptr && res) {
-                ret.second = node->_data->entries(node->_count, true)[b_index];
+            if (HAS_ENTRIES && res) {
+                ret.second = node->_data->entries(node->_count)[b_index];
             }
         }
         return ret;
@@ -870,10 +867,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::insert(const KEY* data, size_t length) {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
         const auto size = byte_iterator<KEY>::element_size() * length;
-        const bool hasent = _entries != nullptr;
         uint b_index = 0;
 
         fwdnode_t* fwd = _root.get();
@@ -884,9 +880,9 @@ namespace ptrie {
         bool res = best_match(data, length, &fwd, &base, byte, b_index);
         if (res) { // We are not inserting duplicates, semantics of PTrie is a set.
             returntype_t ret(false, 0);
-            if (hasent) {
+            if constexpr (HAS_ENTRIES) {
                 node = (node_t*)base;
-                ret = returntype_t(false, node->_data->entries(node->_count, true)[b_index]);
+                ret = returntype_t(false, node->_data->entries(node->_count)[b_index]);
             }
             return ret;
         }
@@ -947,7 +943,7 @@ namespace ptrie {
         uint nbucketsize = node->_totsize + nitemsize;
 
         bucket_t* nbucket = (bucket_t*) new uchar[nbucketsize + 
-                bucket_t::overhead(nbucketcount, hasent)];
+                bucket_t::overhead(nbucketcount)];
 
         // copy over old "firsts"
         memcpy(&nbucket->first(nbucketcount), &(node->_data->first(node->_count)), b_index * sizeof (uint16_t));
@@ -967,13 +963,13 @@ namespace ptrie {
         }
 
         size_t entry = 0;
-        if (hasent) {
+        if constexpr (HAS_ENTRIES) {
             // copy over entries
-            memcpy(nbucket->entries(nbucketcount, true), node->_data->entries(node->_count, true), b_index * sizeof (I));
-            memcpy(&(nbucket->entries(nbucketcount, true)[b_index + 1]), &(node->_data->entries(node->_count, true)[b_index]),
+            memcpy(nbucket->entries(nbucketcount), node->_data->entries(node->_count), b_index * sizeof (I));
+            memcpy(&(nbucket->entries(nbucketcount)[b_index + 1]), &(node->_data->entries(node->_count)[b_index]),
                     (node->_count - b_index) * sizeof (I));
 
-            entry = nbucket->entries(nbucketcount, true)[b_index] = _entries->next(0);
+            entry = nbucket->entries(nbucketcount)[b_index] = _entries->next(0);
             entry_t& ent = _entries->operator[](entry);
             ent.node = (size_t)fwd;
             ent.path = (nbucket->first(nbucketcount, b_index) >> 8);
@@ -999,21 +995,21 @@ namespace ptrie {
             }
         }
         // copy over old data
-        memcpy(nbucket->data(nbucketcount, hasent),
-                node->_data->data(node->_count, hasent), tmpsize);
+        memcpy(nbucket->data(nbucketcount),
+                node->_data->data(node->_count), tmpsize);
 
-        memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize + nitemsize]),
-                &(node->_data->data(node->_count, hasent)[tmpsize]), (node->_totsize - tmpsize));
+        memcpy(&(nbucket->data(nbucketcount)[tmpsize + nitemsize]),
+                &(node->_data->data(node->_count)[tmpsize]), (node->_totsize - tmpsize));
 
         // copy over new data
         if (copyval) {
             if constexpr (byte_iterator<KEY>::continious())
-                memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize]),
+                memcpy(&(nbucket->data(nbucketcount)[tmpsize]),
                         &byte_iterator<KEY>::const_access(data, byte), nenc_size);
             else
             {
                 for(size_t i = 0; i < nenc_size; ++i)
-                    nbucket->data(nbucketcount, hasent)[tmpsize+i] = 
+                    nbucket->data(nbucketcount)[tmpsize+i] = 
                             byte_iterator<KEY>::const_access(data, byte+i);
             }
         } else {
@@ -1028,7 +1024,7 @@ namespace ptrie {
                     dest[i] = byte_iterator<KEY>::const_access(data, byte+i);
 
             // copy pointer in
-            memcpy(&(nbucket->data(nbucketcount, hasent)[tmpsize]),
+            memcpy(&(nbucket->data(nbucketcount)[tmpsize]),
                     &dest, sizeof (uchar*));
         }
 
@@ -1064,14 +1060,12 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {
-        const bool hasent = _entries != nullptr;
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
             nbucket = (bucket_t *) new uchar[totsize +
-                                          bucket_t::overhead(node->_count,
-                                                             hasent)];
+                                          bucket_t::overhead(node->_count)];
         }
 
         size_t dcnt = 0;
@@ -1089,13 +1083,13 @@ namespace ptrie {
             {
                 if(size < HEAPBOUND)
                 {
-                    nbucket->data(node->_count, hasent)[dcnt] = push;
+                    nbucket->data(node->_count)[dcnt] = push;
                     dcnt += 1;
                 }
                 if(size < HEAPBOUND && size > 1)
                 {
-                    memcpy(&(nbucket->data(node->_count, hasent)[dcnt]),
-                               &(node->_data->data(node->_count, hasent)[ocnt]),
+                    memcpy(&(nbucket->data(node->_count)[dcnt]),
+                               &(node->_data->data(node->_count)[ocnt]),
                                        size - 1);
                     ocnt += size - 1;
                     dcnt += size - 1;
@@ -1104,12 +1098,12 @@ namespace ptrie {
                 {
                     uchar* src = nullptr;
                     uchar* dest = new uchar[size];
-                    memcpy(&(nbucket->data(node->_count, hasent)[dcnt]), &dest, sizeof(size_t));
+                    memcpy(&(nbucket->data(node->_count)[dcnt]), &dest, sizeof(size_t));
                     ++dest;
                     dcnt += sizeof(size_t);
                     if(size == HEAPBOUND)
                     {
-                        src = &(node->_data->data(node->_count, hasent)[ocnt]);
+                        src = &(node->_data->data(node->_count)[ocnt]);
                         memcpy(dest, src, size - 1);
                         ocnt += size - 1;
                     }
@@ -1117,7 +1111,7 @@ namespace ptrie {
                     {
                         assert(size > HEAPBOUND);
                         // allready on heap, but we need to expand it
-                        src = *(uchar**)&(node->_data->data(node->_count, hasent)[ocnt]);
+                        src = *(uchar**)&(node->_data->data(node->_count)[ocnt]);
                         memcpy(dest, src, size - 1);
                         ocnt += sizeof(size_t);
                     }
@@ -1139,9 +1133,8 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
     {
-        const bool hasent = _entries != nullptr;
         if(node->_type == 0)
         {
             if(node->_count < SPLITBOUND/3) return true;
@@ -1333,7 +1326,7 @@ namespace ptrie {
                         return false;
 
                     bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
-                                                            bucket_t::overhead(nbucketcount, hasent)];
+                                                            bucket_t::overhead(nbucketcount)];
                     node_t *first = node;
                     node_t *second = other;
                     if (path & masks[node->_type - 1]) {
@@ -1348,24 +1341,24 @@ namespace ptrie {
                            &(second->_data->first(second->_count)),
                            second->_count * sizeof(uint16_t));
 
-                    if (hasent) {
+                    if constexpr (HAS_ENTRIES) {
                         // copy over entries
-                        memcpy(nbucket->entries(nbucketcount, true),
-                               first->_data->entries(first->_count, true),
+                        memcpy(nbucket->entries(nbucketcount),
+                               first->_data->entries(first->_count),
                                first->_count * sizeof(I));
-                        memcpy(&(nbucket->entries(nbucketcount, true)[first->_count]),
-                               second->_data->entries(second->_count, true),
+                        memcpy(&(nbucket->entries(nbucketcount)[first->_count]),
+                               second->_data->entries(second->_count),
                                second->_count * sizeof(I));
 
                     }
 
                     // copy over old data
                     if (nbucketsize > 0) {
-                        memcpy(nbucket->data(nbucketcount, hasent),
-                               first->_data->data(first->_count, hasent), first->_totsize);
+                        memcpy(nbucket->data(nbucketcount),
+                               first->_data->data(first->_count), first->_totsize);
 
-                        memcpy(&(nbucket->data(nbucketcount, hasent)[first->_totsize]),
-                               second->_data->data(second->_count, hasent), second->_totsize);
+                        memcpy(&(nbucket->data(nbucketcount)[first->_totsize]),
+                               second->_data->data(second->_count), second->_totsize);
 
                     }
                     delete[] (uchar*)node->_data;
@@ -1407,10 +1400,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
     {
-        const bool hasent = _entries != nullptr;
-
+        
         // first find size and amount before
         uint16_t size = 0;
         uint16_t before = 0;
@@ -1444,7 +1436,7 @@ namespace ptrie {
         if(size >= HEAPBOUND)
         {
             before = sizeof(size_t)*bindex;
-            uchar* src = *((uchar**)&(node->_data->data(node->_count, hasent)[before]));
+            uchar* src = *((uchar**)&(node->_data->data(node->_count)[before]));
             delete[] src;
             size = sizeof(size_t);
         }
@@ -1454,7 +1446,7 @@ namespace ptrie {
             uint nbucketsize = node->_totsize - size;
 
             bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
-                                                    bucket_t::overhead(nbucketcount, hasent)];
+                                                    bucket_t::overhead(nbucketcount)];
 
             // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
             memcpy(&nbucket->first(nbucketcount),
@@ -1465,13 +1457,13 @@ namespace ptrie {
                        &(node->_data->first(node->_count, bindex + 1)),
                        (nbucketcount - bindex) * sizeof(uint16_t));
 
-            if (hasent) {
+            if constexpr (HAS_ENTRIES) {
                 // copy over entries
-                memcpy(nbucket->entries(nbucketcount, true),
-                       node->_data->entries(node->_count, true),
+                memcpy(nbucket->entries(nbucketcount),
+                       node->_data->entries(node->_count),
                        bindex * sizeof(I));
-                memcpy(&(nbucket->entries(nbucketcount, true)[bindex]),
-                       &(node->_data->entries(node->_count, true)[bindex + 1]),
+                memcpy(&(nbucket->entries(nbucketcount)[bindex]),
+                       &(node->_data->entries(node->_count)[bindex + 1]),
                        (nbucketcount - bindex) * sizeof(I));
 
                 // copy back entries here in _entries!
@@ -1480,11 +1472,11 @@ namespace ptrie {
 
             // copy over old data
             if (nbucketsize > 0) {
-                memcpy(nbucket->data(nbucketcount, hasent),
-                       node->_data->data(node->_count, hasent), before);
+                memcpy(nbucket->data(nbucketcount),
+                       node->_data->data(node->_count), before);
                 assert(nbucketsize >= before);
-                memcpy(&(nbucket->data(nbucketcount, hasent)[before]),
-                       &(node->_data->data(node->_count, hasent)[before + size]),
+                memcpy(&(nbucket->data(nbucketcount)[before]),
+                       &(node->_data->data(node->_count)[before + size]),
                        (nbucketsize - before));
 
             }
@@ -1507,7 +1499,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::erase(const KEY *data, size_t length)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(const KEY *data, size_t length)
     {
         const auto size = length*byte_iterator<KEY>::element_size();
         assert(size <= 65536);
