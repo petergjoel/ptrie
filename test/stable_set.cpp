@@ -114,9 +114,9 @@ struct ptrie::byte_iterator<type_t>
     static constexpr uchar& access(type_t* data, size_t id)
     {
         auto el = id / element_size();
-        assert(el == 0);
-        assert(id < element_size());
         id = id % element_size();
+        assert(id < element_size());
+
         switch(id){
         case 0:
             return (uchar&)data[el]._a;

@@ -37,13 +37,8 @@ namespace ptrie {
     typename I = size_t>
     class map :
     public set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
-#ifdef __APPLE__
-#define pt set_stable<HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>        
-#else
         using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
-#endif
     public:
-        using typename pt::set_stable;
         map() : pt() {};
         map(map&&) = default;
         map& operator=(map&&) = default;
