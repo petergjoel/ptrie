@@ -17,7 +17,7 @@
 // Created by Peter G. Jensen on 24/12/16.
 
 #include <iostream>
-#include <ptrie/ptrie.h>
+#include <ptrie/ptrie_map.h>
 #include <stdlib.h>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
@@ -188,6 +188,19 @@ int main(int argc, const char** argv)
         ptrie::set<> set;
         set_insert_ptrie(set, elements, std::rand(), deletes, read_rate, order);
     }
+    else if(strcmp(type, "ptrie-stable") == 0)
+    {
+        print_settings(type, elements, seed, sizeof(size_t), deletes, read_rate, 256);
+        ptrie::set_stable<> set;
+        set_insert_ptrie(set, elements, std::rand(), deletes, read_rate, order);
+    }
+    else if(strcmp(type, "ptrie-map") == 0)
+    {
+        print_settings(type, elements, seed, sizeof(size_t), deletes, read_rate, 256);
+        ptrie::map<unsigned char,size_t> set;
+        set_insert_ptrie(set, elements, std::rand(), deletes, read_rate, order);
+    }
+
     else if (strcmp(type, "std") == 0) {
         print_settings(type, elements, seed, sizeof(size_t), deletes, read_rate, 256);
         std::unordered_set<size_t, hasher_o, equal_o> set;
