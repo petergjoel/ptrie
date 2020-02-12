@@ -54,13 +54,13 @@ namespace ptrie {
     template<typename N>
     struct ptrie_el_t<void, N> {
         N _node;
-    } __attribute__((packed));
+    };
     typedef std::pair<bool, size_t> returntype_t;
 
     struct base_t {
         uchar _path;
         uchar _type;
-    } __attribute__((packed));
+    };
 
     template<typename KEY>
     struct byte_iterator {
@@ -146,22 +146,21 @@ namespace ptrie {
                 return ((uint16_t*) &_data)[index];
             }
 
-        } __attribute__((packed));
+        };
 
         // nodes in the tree
 
         struct node_t : public base_t {
-            uint16_t _totsize = 0;
             uint16_t _count = 0; // bucket-counts
+            uint32_t _totsize = 0; 
             fwdnode_t* _parent = nullptr;
             bucket_t* _data = nullptr; // back-pointers to data-array up to date
-        } __attribute__((packed));
+        };
 
         struct fwdnode_t : public base_t {
             base_t* _children[WIDTH];
             fwdnode_t* _parent;
-
-        } __attribute__((packed));
+        };
 
         std::shared_ptr<linked_bucket_t<entry_t, ALLOCSIZE>> _entries = nullptr;
 
