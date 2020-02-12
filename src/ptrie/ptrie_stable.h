@@ -77,8 +77,8 @@ namespace ptrie {
             bool found = false;
 #endif
             typename pt::entry_t& ent = this->_entries->operator[](index);
-            par = (typename pt::fwdnode_t*)ent.node;
-            node = (typename pt::node_t*)par->_children[ent.path];
+            node = ent._node;
+            par = node->_parent;
             typename pt::bucket_t* bckt = node->_data;
             I* ents = bckt->entries(node->_count);
             for (size_t i = 0; i < node->_count; ++i) {

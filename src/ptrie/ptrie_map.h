@@ -69,7 +69,7 @@ namespace ptrie {
     T&
     map<KEY, T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
-        return ent.data;
+        return ent._data;
     }
 }
 #undef pt

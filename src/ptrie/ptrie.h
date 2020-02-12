@@ -47,15 +47,13 @@ namespace ptrie {
     constexpr auto WIDTH = 256;
     template<typename D, typename N>
     struct ptrie_el_t {
-        N node;
-        D data;
-        uchar path;
+        N _node;
+        D _data;
     };
 
     template<typename N>
     struct ptrie_el_t<void, N> {
-        N node;
-        uchar path;
+        N _node;
     } __attribute__((packed));
     typedef std::pair<bool, size_t> returntype_t;
 
@@ -120,7 +118,7 @@ namespace ptrie {
                 
     protected:
 
-        typedef ptrie_el_t<T, I> entry_t;
+        typedef ptrie_el_t<T, node_t*> entry_t;
         
         struct bucket_t {
 
@@ -155,6 +153,7 @@ namespace ptrie {
         struct node_t : public base_t {
             uint16_t _totsize = 0;
             uint16_t _count = 0; // bucket-counts
+            fwdnode_t* _parent = nullptr;
             bucket_t* _data = nullptr; // back-pointers to data-array up to date
         } __attribute__((packed));
 
@@ -474,6 +473,7 @@ namespace ptrie {
         node->_path = masks[0];
         lown._type = 1;
         node->_type = 1;
+        node->_parent = fwd_n;
 
 
         for (size_t i = 0; i < WIDTH; ++i) fwd_n->_children[i] = (locked == nullptr ? node : locked);
@@ -626,15 +626,6 @@ namespace ptrie {
             bcnt += bytes(lengths[i]);
         }
 
-        if constexpr (HAS_ENTRIES) {
-            I* ents = bucket->entries(bucketsize);
-            for (size_t i = 0; i < bucketsize; ++i) {
-                entry_t& ent = _entries->operator[](ents[i]);
-                ent.node = (size_t)fwd_n;
-                ent.path = (bucket->first(bucketsize, i));
-            }
-        }
-
         if (lcnt == 0) {
             if constexpr (HAS_ENTRIES)
                 memcpy(node->_data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
@@ -661,13 +652,18 @@ namespace ptrie {
             low_n->_count = lown._count;
             low_n->_path = lown._path;
             low_n->_type = lown._type;
+            low_n->_parent =  fwd_n;
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = low_n;
             if constexpr (HAS_ENTRIES) {
                 // We are stopping splitting here, so correct entries if needed
                 I* ents = bucket->entries(bucketsize);
 
                 for (size_t i = 0; i < bucketsize; ++i) {
-                    if (i < lown._count) lown._data->entries(lown._count)[i] = ents[i];
+                    if (i < lown._count)
+                    {
+                        lown._data->entries(lown._count)[i] = ents[i];
+                        _entries->operator[](ents[i])._node = low_n;
+                    }
                     else node->_data->entries(node->_count)[i - lown._count] = ents[i];
                 }
             }
@@ -801,6 +797,7 @@ namespace ptrie {
             h_node->_path = hnode._path;
             h_node->_totsize = hnode._totsize;
             h_node->_data = hnode._data;
+            h_node->_parent = jumppar;
 
             for(size_t i = hnode._path; i < hnode._path + dist; ++i)
             {
@@ -826,7 +823,11 @@ namespace ptrie {
 
                 for (size_t i = 0; i < bucketsize; ++i) {
                     if (i < node->_count) node->_data->entries(node->_count)[i] = ents[i];
-                    else h_node->_data->entries(h_node->_count)[i - node->_count] = ents[i];
+                    else
+                    {
+                        h_node->_data->entries(h_node->_count)[i - node->_count] = ents[i];
+                        _entries->operator[](ents[i])._node = h_node;
+                    }
                 }
             }
 
@@ -887,13 +888,14 @@ namespace ptrie {
             return ret;
         }
 
-        if((size_t)base == (size_t)fwd)
+        if(base == (base_t*)fwd)
         {
             node = new_node();
             node->_count = 0;
             node->_data = nullptr;
             node->_type = 0;
             node->_path = 0;
+            node->_parent = fwd;
             assert(node);
 
             uchar* sc = (uchar*) & size;
@@ -971,8 +973,7 @@ namespace ptrie {
 
             entry = nbucket->entries(nbucketcount)[b_index] = _entries->next(0);
             entry_t& ent = _entries->operator[](entry);
-            ent.node = (size_t)fwd;
-            ent.path = (nbucket->first(nbucketcount, b_index) >> 8);
+            ent._node = node;
         }
 
 
@@ -1211,6 +1212,7 @@ namespace ptrie {
                     });
 
                     node->_path = parent->_path;
+                    node->_parent = parent->_parent;
                     parent->_parent->_children[node->_path] = node;
                     node->_type = 8;
                     node->_totsize = totsize;
