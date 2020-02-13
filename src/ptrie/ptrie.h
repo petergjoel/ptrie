@@ -543,14 +543,14 @@ namespace ptrie {
         int lbcnt = 0;
         int hbcnt = 0;
         bcnt = 0;
-#define LLENGTH(x) lengths[x] - 1
         for (int i = 0; i < bucketsize; ++i) {
+            const auto next_length = lengths[i] - 1;
             if (i < lown._count) {
                 lown._data->first(lown._count, i) = (bucket->first(bucketsize, i) << 8);
                 if (lengths[i] > 0) {
                     uchar* dest = &(lown._data->data(lown._count)[lbcnt]);
-                    if (LLENGTH(i) >= HEAPBOUND) {
-                        uchar* data = new uchar[LLENGTH(i)];
+                    if (next_length >= HEAPBOUND) {
+                        uchar* data = new uchar[next_length];
                         memcpy(dest, &data, sizeof (uchar*));
                         dest = data;
                     }
@@ -567,27 +567,27 @@ namespace ptrie {
 
                     memcpy(dest,
                             &(src[1]),
-                            LLENGTH(i));
+                            next_length);
 
                     if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
-                        if (LLENGTH(i) >= HEAPBOUND) {
+                        if (next_length >= HEAPBOUND) {
                             uchar* tmp = *((uchar**)&(lown._data->data(lown._count)[lbcnt]));
                             assert(tmp == dest);
-                            assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
+                            assert(memcmp(tmp, &(src[1]), next_length) == 0);
                         }
 #endif
                         delete[] src;
                     }
-                    lbcnt += bytes(LLENGTH(i));
+                    lbcnt += bytes(next_length);
                 }
             } else {
                 int j = i - lown._count;
                 node->_data->first(node->_count, j) = (bucket->first(bucketsize, i) << 8);
                 if (lengths[i] > 0) {
                     uchar* dest = &(node->_data->data(node->_count)[hbcnt]);
-                    if (LLENGTH(i) >= HEAPBOUND) {
-                        uchar* data = new uchar[LLENGTH(i)];
+                    if (next_length >= HEAPBOUND) {
+                        uchar* data = new uchar[next_length];
                         memcpy(dest, &data, sizeof (uchar*));
                         dest = data;
                     }
@@ -605,22 +605,22 @@ namespace ptrie {
 
                     memcpy(dest,
                             &(src[1]),
-                            LLENGTH(i));
+                            next_length);
 
                     if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
-                        if (LLENGTH(i) >= HEAPBOUND) {
+                        if (next_length >= HEAPBOUND) {
                             uchar* tmp = *((uchar**)&(node->_data->data(node->_count)[hbcnt]));
                             assert(tmp == dest);
-                            assert(memcmp(tmp, &(src[1]), LLENGTH(i)) == 0);
+                            assert(memcmp(tmp, &(src[1]), next_length) == 0);
                         }
 #endif
                         delete[] src;
                     }
                 }
 
-                hbcnt += bytes(LLENGTH(i));
-                assert(LLENGTH(i) == lengths[i] - 1);
+                hbcnt += bytes(next_length);
+                assert(next_length == lengths[i] - 1);
             }
             bcnt += bytes(lengths[i]);
         }
