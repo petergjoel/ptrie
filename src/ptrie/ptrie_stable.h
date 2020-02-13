@@ -93,7 +93,7 @@ namespace ptrie {
             assert(found);
         }
 
-        while (par != this->_root.get()) {
+        while (par != &this->_root) {
             path.push(par->_path);
             par = par->_parent;
         }
