@@ -543,86 +543,55 @@ namespace ptrie {
         int lbcnt = 0;
         int hbcnt = 0;
         bcnt = 0;
-        for (int i = 0; i < bucketsize; ++i) {
+        constexpr auto move_data = [](const auto i, bucket_t* bucket, const auto bucketsize, node_t& node, const auto offset, uint16_t* lengths, int& bcnt, int& nbcnt)
+        {
             const auto next_length = lengths[i] - 1;
-            if (i < lown._count) {
-                lown._data->first(lown._count, i) = (bucket->first(bucketsize, i) << 8);
-                if (lengths[i] > 0) {
-                    uchar* dest = &(lown._data->data(lown._count)[lbcnt]);
-                    if (next_length >= HEAPBOUND) {
-                        uchar* data = new uchar[next_length];
-                        memcpy(dest, &data, sizeof (uchar*));
-                        dest = data;
-                    }
-
-                    uchar* src;
-                    if (lengths[i] >= HEAPBOUND) {
-                        src = *((uchar**)&(bucket->data(bucketsize)[bcnt]));
-                    } else {
-                        src = &(bucket->data(bucketsize)[bcnt]);
-                    }
-
-                    uchar* f = (uchar*)&(lown._data->first(lown._count, i));
-                    f[0] = src[0];
-
-                    memcpy(dest,
-                            &(src[1]),
-                            next_length);
-
-                    if (lengths[i] >= HEAPBOUND) {
-#ifndef NDEBUG
-                        if (next_length >= HEAPBOUND) {
-                            uchar* tmp = *((uchar**)&(lown._data->data(lown._count)[lbcnt]));
-                            assert(tmp == dest);
-                            assert(memcmp(tmp, &(src[1]), next_length) == 0);
-                        }
-#endif
-                        delete[] src;
-                    }
-                    lbcnt += bytes(next_length);
-                }
-            } else {
-                int j = i - lown._count;
-                node->_data->first(node->_count, j) = (bucket->first(bucketsize, i) << 8);
-                if (lengths[i] > 0) {
-                    uchar* dest = &(node->_data->data(node->_count)[hbcnt]);
-                    if (next_length >= HEAPBOUND) {
-                        uchar* data = new uchar[next_length];
-                        memcpy(dest, &data, sizeof (uchar*));
-                        dest = data;
-                    }
-
-                    uchar* src;
-                    if (lengths[i] < HEAPBOUND) {
-                        src = &(bucket->data(bucketsize)[bcnt]);
-                    } else {
-                        src = *((uchar**)&(bucket->data(bucketsize)[bcnt]));
-                    }
-
-                    uchar* f = (uchar*) & node->_data->first(node->_count, j);
-
-                    f[0] = src[0];
-
-                    memcpy(dest,
-                            &(src[1]),
-                            next_length);
-
-                    if (lengths[i] >= HEAPBOUND) {
-#ifndef NDEBUG
-                        if (next_length >= HEAPBOUND) {
-                            uchar* tmp = *((uchar**)&(node->_data->data(node->_count)[hbcnt]));
-                            assert(tmp == dest);
-                            assert(memcmp(tmp, &(src[1]), next_length) == 0);
-                        }
-#endif
-                        delete[] src;
-                    }
+            const auto j = i - offset;
+            node._data->first(node._count, j) = (bucket->first(bucketsize, i) << 8);
+            if (lengths[i] > 0) {
+                uchar* dest = &(node._data->data(node._count)[nbcnt]);
+                if (next_length >= HEAPBOUND) {
+                    uchar* data = new uchar[next_length];
+                    memcpy(dest, &data, sizeof (uchar*));
+                    dest = data;
                 }
 
-                hbcnt += bytes(next_length);
-                assert(next_length == lengths[i] - 1);
+                uchar* src;
+                if (lengths[i] >= HEAPBOUND) {
+                    src = *((uchar**)&(bucket->data(bucketsize)[bcnt]));
+                } else {
+                    src = &(bucket->data(bucketsize)[bcnt]);
+                }
+
+                uchar* f = (uchar*)&(node._data->first(node._count, j));
+                f[0] = src[0];
+
+                memcpy(dest,
+                        &(src[1]),
+                        next_length);
+
+                if (lengths[i] >= HEAPBOUND) {
+#ifndef NDEBUG
+                    if (next_length >= HEAPBOUND) {
+                        uchar* tmp = *((uchar**)&(node._data->data(node._count)[nbcnt]));
+                        assert(tmp == dest);
+                        assert(memcmp(tmp, &(src[1]), next_length) == 0);
+                    }
+#endif
+                    delete[] src;
+                }
+                nbcnt += bytes(next_length);
             }
-            bcnt += bytes(lengths[i]);
+            bcnt += bytes(lengths[i]);            
+        };
+        
+        {   // migrate data
+            auto i = 0;
+            for (; i < lown._count; ++i)
+                move_data(i, bucket, bucketsize, lown, 0, lengths, bcnt, lbcnt);
+
+            for(; i < bucketsize; ++i)
+                move_data(i, bucket, bucketsize, *node, lown._count, lengths, bcnt, hbcnt);
         }
 
         if (lcnt == 0) {
@@ -1526,8 +1495,6 @@ namespace ptrie {
             return true;
         }
     }
-
-
 }
 
 
