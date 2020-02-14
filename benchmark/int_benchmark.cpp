@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
-#include <tbb/concurrent_unordered_set.h>
+//#include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie/ptrie.h>
 #include <chrono>
@@ -235,7 +235,7 @@ int main(int argc, const char** argv)
     }
     else
     {
-        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, std, sparse, dense, tbb" << std::endl;
+        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, ptrie-stable, ptrie-map, std, sparse, dense, tbb" << std::endl;
         exit(-1);
     }
 

@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <sparsehash/sparse_hash_set>
 #include <sparsehash/dense_hash_set>
-#include <tbb/concurrent_unordered_set.h>
+//#include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie/ptrie_stable.h>
 #include <chrono>
@@ -232,12 +232,12 @@ int main(int argc, const char** argv)
         std::unordered_set<wrapper_t, hasher_o, equal_o> set;
         set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
-    else if(strcmp(type, "tbb") == 0)
+    /*else if(strcmp(type, "tbb") == 0)
     {
         print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         tbb::concurrent_unordered_set<wrapper_t, hasher_o, equal_o> set;
         set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
-    }
+    }*/
     else if(strcmp(type, "sparse") == 0)
     {
         print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
@@ -258,7 +258,7 @@ int main(int argc, const char** argv)
     }
     else
     {
-        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, std, sparse, dense, tbb" << std::endl;
+        std::cerr << "ERROR IN TYPE, ONLY VALUES ALLOWED : ptrie, std, sparse, dense" << std::endl;
         exit(-1);
     }
 
