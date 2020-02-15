@@ -166,8 +166,6 @@ namespace ptrie {
 
         fwdnode_t _root;
     protected:
-        node_t* new_node();
-        fwdnode_t* new_fwd();
 
         base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const;
         bool bucket_search(const KEY* data, size_t length, node_t* node, uint& b_index, uint byte) const;
@@ -277,18 +275,6 @@ namespace ptrie {
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::set()
     {
         init();
-    }
-
-    template<PTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::node_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::new_node() {
-        return new node_t;
-    }
-
-    template<PTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fwdnode_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::new_fwd() {
-        return new fwdnode_t;
     }
 
     template<PTRIETPL>
@@ -459,7 +445,7 @@ namespace ptrie {
         const uint16_t bucketsize = node->_count;
         if(bucketsize < (sizeof(fwdnode_t) / sizeof(size_t))) return;
         node_t lown;
-        fwdnode_t* fwd_n = new_fwd();
+        fwdnode_t* fwd_n = new fwdnode_t;
 
         fwd_n->_parent = jumppar;
         fwd_n->_type = 255;
@@ -611,7 +597,7 @@ namespace ptrie {
             node->_type = lown._type;
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - 1 : 0, byte + 1);
         } else {
-            node_t* low_n = new_node();
+            node_t* low_n = new node_t;
             low_n->_data = lown._data;
             low_n->_totsize = lown._totsize;
             low_n->_count = lown._count;
@@ -756,12 +742,11 @@ namespace ptrie {
             node->_data = old;
             split_node(node, jumppar, locked, bsize, byte);
         } else {
-            node_t* h_node = new_node();
+            node_t* h_node = new node_t;
             h_node->_count = hnode._count;
             h_node->_type = hnode._type;
             h_node->_path = hnode._path;
             h_node->_totsize = hnode._totsize;
-            h_node->_data = hnode._data;
             h_node->_parent = jumppar;
 
             for(size_t i = hnode._path; i < hnode._path + dist; ++i)
@@ -855,12 +840,13 @@ namespace ptrie {
 
         if(base == (base_t*)fwd)
         {
-            node = new_node();
+            node = new node_t;
             node->_count = 0;
             node->_data = nullptr;
             node->_type = 0;
             node->_path = 0;
             node->_parent = fwd;
+            node->_totsize = 0;
             assert(node);
 
             uchar* sc = (uchar*) & size;
