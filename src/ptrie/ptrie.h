@@ -449,9 +449,14 @@ namespace ptrie {
     template<PTRIETPL>
     void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t p_byte) 
     {
+        if(bsize+1 == p_byte/2)
+        {
+            assert(node->_count <= 256);
+            return;
+        }
         assert(node->_count == SPLITBOUND);
 
-        const uint16_t bucketsize = node->_count;
+        const uint16_t bucketsize = SPLITBOUND;
         node_t lown;
         fwdnode_t* fwd_n = new fwdnode_t;
 
