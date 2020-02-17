@@ -293,13 +293,7 @@ namespace ptrie {
             uchar nb;
             if (byte >= 2) nb = byte_iterator<KEY>::const_access(data, byte - 2);
             else nb = sc[1 - byte];
-            if(p_byte > 1)
-            {
-                std::cerr << "HELLO" << std::endl;
-            }
-            std::cerr << "(FF) " << p_byte << " : " << (int) nb;
             nb = (nb >> (((p_byte+1)%2)*4)) & 0x0F;
-            std::cerr << " " << (int) nb << std::endl;
             next = t_pos->_children[nb];
 
             assert(next != nullptr);
@@ -500,9 +494,7 @@ namespace ptrie {
                 }
             }
             uchar b = ((uchar*)&bucket->first(bucketsize, i))[(p_byte + 1) % 2];
-            std::cerr << "N " << (int) b;
             b = (b >> (((p_byte)%2)*4)) & masks[0];
-            std::cerr << " " << (int)b << " AT " << p_byte << std::endl;
             if (b == 0) {
                 ++lcnt;
                 if (lengths[i] < (HEAPBOUND + to_cut)) {
@@ -588,10 +580,7 @@ namespace ptrie {
             }
             bcnt += bytes(lengths[i]);       
         };
-        if(lown._count != 0 && node->_count != 0)
-        {
-            std::cerr << "HELLO DO SPLIT" << std::endl;
-        }
+
         {   // migrate data
             auto i = 0;
             for (; i < lown._count; ++i)
@@ -670,7 +659,6 @@ namespace ptrie {
 
         assert((node->_path & masks[node->_type]) == 0);
         hnode._path = node->_path | masks[node->_type];
-        std::cerr << "NPATH " << (int) hnode._path << " FROM " << (int) node->_path << std::endl;
 
         // because we are only really shifting around bits when enc_pos % 8 = 0
         // then we need to find out which bit of the first 8 we are
@@ -875,9 +863,7 @@ namespace ptrie {
 
             uchar* sc = (uchar*) & size;
             uchar b = (byte < 2 ? sc[1 - byte] : byte_iterator<KEY>::const_access(data, byte-2));
-            std::cerr << "(INS) " << p_byte << " :: " << (int)b;
             b = (b >> ((p_byte+1) % 2)*4) & 0x0F;
-            std::cerr << " " << (int) b << std::endl;
 
             uchar min = b;
             uchar max = b;
@@ -1020,9 +1006,8 @@ namespace ptrie {
             // copy over data to we can work while readers finish
             // we have to wait for readers to finish for 
             // tree extension
-            std::cerr << "SPLIT" << std::endl;
             split_node(node, fwd, node, nenc_size, p_byte);
-        } else { std::cerr << "NO SPLIT" << std::endl; }
+        }
 
 #ifndef NDEBUG        
         for (int i = byte - 1; i >= 2; --i) {
