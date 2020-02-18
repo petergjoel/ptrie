@@ -184,7 +184,14 @@ namespace ptrie {
         void init();
 
         void erase(fwdnode_t* parent, node_t* node, size_t bucketid, int byte);
+        // helper-functions for erase
         bool merge_down(fwdnode_t* parent, node_t* node, int byte);
+        bool merge_regular(fwdnode_t* parent, node_t* node, int on_heap);
+        bool merge_nodes(node_t* node, node_t* other, uchar path);
+        bool merge_empty(fwdnode_t* parent, node_t* node, int byte);
+        bool readd_sizes(fwdnode_t* parent, node_t* node, int on_heap);
+        bool readd_byte(fwdnode_t* parent, node_t* node, int on_heap);
+
         void inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> sizes);
         static constexpr uchar masks[4] = {
 /*            static_cast <uchar>(0x80),
@@ -1103,7 +1110,300 @@ namespace ptrie {
         node->_data = nbucket;
     }
 
+    template<PTRIETPL>
+    bool 
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_empty(fwdnode_t* parent, node_t* node, int on_heap)
+    {
+        /*
+         * If a node is emtpy, we can remove all the way down til we meet some 
+         * non-empty node
+         */
+        assert(node->_count == 0);
+        for(size_t i = 0; i < WIDTH; ++i) parent->_children[i] = parent;
+        delete node;
+        do {
+            if (parent != &_root) {
+                // we can remove fwd and go back one level
+                parent->_parent->_children[parent->_path] = parent->_parent;
+                ++on_heap;
+                fwdnode_t* next = parent->_parent;
+                delete parent;
+                parent = next;
+                base_t* other = parent;
+                for(size_t i = 0; i < WIDTH; ++i)
+                {
+                    if(parent->_children[i] != parent && other != parent->_children[i])
+                    {
+                        if(other != parent)
+                        {
+                            other = nullptr;
+                            break;
+                        }
+                        else
+                        {
+                            other = parent->_children[i];
+                        }
+                    }
+                }
 
+                if(other == nullptr)
+                {
+                    return true;
+                }
+                else if(other->_type != 255)
+                {
+                    node = (node_t*)other;
+                    assert(false);
+                    return merge_down(parent, node, on_heap);
+                }
+                else if(other != parent)
+                {
+                    assert(other->_type == 255);
+                    return true;
+                }
+
+            } else {
+                return true;
+            }
+        } while(true);        
+    }
+    
+    template<PTRIETPL>
+    bool 
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_nodes(node_t* node, node_t* other, uchar path)
+    {
+        /*
+         * Migrate data from "other"-node to "node"
+         */
+        assert(node->_count > 0);
+        assert(other->_count > 0);
+        const uint nbucketcount = node->_count + other->_count;
+        const uint nbucketsize = node->_totsize + other->_totsize;
+
+        if (nbucketcount >= SPLITBOUND)
+            return false;
+
+        bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
+                                                bucket_t::overhead(nbucketcount)];
+        node_t *first = node;
+        node_t *second = other;
+        if (path & masks[node->_type - 1]) {
+            std::swap(first, second);
+        }
+
+        memcpy(&nbucket->first(nbucketcount),
+               &(first->_data->first(first->_count)),
+               first->_count * sizeof(uint16_t));
+
+        memcpy(&(nbucket->first(nbucketcount, first->_count)),
+               &(second->_data->first(second->_count)),
+               second->_count * sizeof(uint16_t));
+
+        if constexpr (HAS_ENTRIES) {
+            // copy over entries
+            memcpy(nbucket->entries(nbucketcount),
+                   first->_data->entries(first->_count),
+                   first->_count * sizeof(I));
+            memcpy(&(nbucket->entries(nbucketcount)[first->_count]),
+                   second->_data->entries(second->_count),
+                   second->_count * sizeof(I));
+
+        }
+
+        // copy over old data
+        if (nbucketsize > 0) {
+            memcpy(nbucket->data(nbucketcount),
+                   first->_data->data(first->_count), first->_totsize);
+
+            memcpy(&(nbucket->data(nbucketcount)[first->_totsize]),
+                   second->_data->data(second->_count), second->_totsize);
+
+        }
+        delete[] (uchar*)node->_data;
+        node->_data = nbucket;
+        node->_totsize = nbucketsize;
+        node->_count = nbucketcount;
+        return true;
+    }
+
+    template<PTRIETPL>
+    bool
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(fwdnode_t* parent, node_t* node, int on_heap)
+    {
+        /*
+         * we are re-adding one of the size-bytes. I.e. we are soon at the root
+         */
+        assert(node->_count > 0);
+        assert(&_root == node->_parent);
+        uint16_t sizes[WIDTH];
+        size_t totsize = 0;
+        for(size_t i = 0; i < node->_count; ++i)
+        {
+            uint16_t t = 0;
+            uchar* tc = (uchar*)&t;
+            uchar* fc = (uchar*)&node->_data->first(node->_count, i);
+            tc[0] = fc[1];
+            tc[1] = parent->_path;
+            sizes[i] = t;
+            totsize += bytes(sizes[i]);
+        }
+
+        inject_byte(node, parent->_path, totsize, [&sizes](size_t i )
+        {
+            return sizes[i];
+        });
+
+        node->_path = parent->_path;
+        node->_parent = parent->_parent;
+        parent->_parent->_children[node->_path] = node;
+        node->_type = 8;
+        node->_totsize = totsize;
+        fwdnode_t* next = parent->_parent;
+        delete parent;
+        return merge_down(next, node, on_heap + 1);        
+    }
+    
+    template<PTRIETPL>
+    bool 
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(fwdnode_t* parent, node_t* node, int on_heap)
+    {
+        /*
+         * We are removing a parent, so we need to re-add the byte from the path
+         * here.
+         */
+        assert(node->_count > 0);
+        assert(node->_parent != &_root);
+        if(on_heap == std::numeric_limits<int>::min())
+        {
+            int depth = 0;
+            uint16_t length = 0;
+            uchar* l = (uchar*)&length;
+            fwdnode_t* tmp = parent;
+
+            while(tmp != &_root)
+            {
+                l[0] = l[1];
+                l[1] = tmp->_path;
+                tmp = tmp->_parent;
+                ++depth;
+            }
+            assert(length + 1 >= depth);
+            on_heap = length;
+            on_heap -= depth;
+        }
+
+        on_heap += 1;
+        // first copy in path to firsts.
+
+        assert(on_heap >= 0);
+        node->_path = parent->_path;
+        parent->_parent->_children[node->_path] = node;
+        fwdnode_t* next = parent->_parent;
+        delete parent;
+        parent = next;
+        node->_type = 8;
+
+        if(on_heap == 0)
+        {
+            for(size_t i = 0; i < node->_count; ++i)
+            {
+                uchar* f = (uchar*)&node->_data->first(node->_count, i);
+                f[0] = f[1];
+                f[1] = node->_path;
+            }
+        }
+        else if(on_heap > 0)
+        {
+            size_t nbucketsize = 0;
+            if(on_heap >= HEAPBOUND)
+            {
+                nbucketsize = node->_count * sizeof(size_t);
+            }
+            else//if(on_heap < HEAPBOUND)
+            {
+                assert(on_heap >= 0);
+                nbucketsize = on_heap * node->_count;
+            }
+
+            inject_byte(node, node->_path, nbucketsize, [on_heap](size_t)
+            {
+                return on_heap;
+            });
+
+            node->_totsize = nbucketsize;
+        }
+        return merge_down(next, node, on_heap + 1);
+    }
+    
+    template<PTRIETPL>
+    bool
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(fwdnode_t* parent, node_t* node, int on_heap)
+    {
+        /*
+         * We merge a regular node
+         */
+        assert(node->_type > 0);
+        assert(node->_type <= 4);
+        if(node->_count > SPLITBOUND / 3) return true;
+        uchar path = node->_path;
+        base_t* child;
+        if(path & masks[node->_type - 1])
+        {
+            child = parent->_children[
+                     path & ~masks[node->_type - 1]];
+        }
+        else
+        {
+            child = parent->_children[
+                    path | masks[node->_type - 1]];
+        }
+
+        assert(node != child);
+
+        if(child->_type != node->_type && child->_type != 255)
+        {
+            // The other node is not ready for merging yet.
+            assert(child->_type > node->_type);
+            return false;
+        }
+        else
+        {
+
+            if(child->_type != 255) {
+                node_t *other = (node_t *) child;
+                if(!merge_nodes(node, other, path))
+                    return false;
+            }
+            uchar from = node->_path & ~masks[node->_type - 1];
+            uchar to = from;
+            for(size_t i = node->_type - 1; i < 4; ++i) {
+                to = to | masks[i];
+            }
+
+            if(child->_type == 255)
+            {
+                if(child != parent) return true;
+                for(size_t i = from; i <= to; ++i)
+                {
+                    if( parent->_children[i] != child &&
+                        parent->_children[i] != node)
+                        return  true;
+                }
+            }
+
+            node->_type -= 1;
+            node->_path = from;
+
+            for(size_t i = from; i <= to; ++i)
+            {
+                assert(parent->_children[i] == child ||
+                   parent->_children[i] == node);
+                parent->_children[i] = node;
+            }
+            return merge_down(parent, node, on_heap);
+        }
+    }
+    
     template<PTRIETPL>
     bool
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
@@ -1113,148 +1413,18 @@ namespace ptrie {
             if(node->_count < SPLITBOUND/3) return true;
             if(node->_count == 0)
             {
-                for(size_t i = 0; i < WIDTH; ++i) parent->_children[i] = parent;
-                delete node;
-                do {
-                    if (parent != &_root) {
-                        // we can remove fwd and go back one level
-                        parent->_parent->_children[parent->_path] = parent->_parent;
-                        ++on_heap;
-                        fwdnode_t* next = parent->_parent;
-                        delete parent;
-                        parent = next;
-                        base_t* other = parent;
-                        for(size_t i = 0; i < WIDTH; ++i)
-                        {
-                            if(parent->_children[i] != parent && other != parent->_children[i])
-                            {
-                                if(other != parent)
-                                {
-                                    other = nullptr;
-                                    break;
-                                }
-                                else
-                                {
-                                    other = parent->_children[i];
-                                }
-                            }
-                        }
-
-                        if(other == nullptr)
-                        {
-                            return true;
-                        }
-                        else if(other->_type != 255)
-                        {
-                            node = (node_t*)other;
-                            return merge_down(parent, node, on_heap);
-                        }
-                        else if(other != parent)
-                        {
-                            assert(other->_type == 255);
-                            return true;
-                        }
-
-                    } else {
-                        return true;
-                    }
-                } while(true);
+                return merge_empty(parent, node, on_heap);
             }
             else if(parent != &_root)
             {
                 // we need to re-add path to items here.
                 if(parent->_parent == &_root) {
                     // something
-                    uint16_t sizes[WIDTH];
-                    size_t totsize = 0;
-                    for(size_t i = 0; i < node->_count; ++i)
-                    {
-                        uint16_t t = 0;
-                        uchar* tc = (uchar*)&t;
-                        uchar* fc = (uchar*)&node->_data->first(node->_count, i);
-                        tc[0] = fc[1];
-                        tc[1] = parent->_path;
-                        sizes[i] = t;
-                        totsize += bytes(sizes[i]);
-                    }
-
-                    inject_byte(node, parent->_path, totsize, [&sizes](size_t i )
-                    {
-                        return sizes[i];
-                    });
-
-                    node->_path = parent->_path;
-                    node->_parent = parent->_parent;
-                    parent->_parent->_children[node->_path] = node;
-                    node->_type = 8;
-                    node->_totsize = totsize;
-                    fwdnode_t* next = parent->_parent;
-                    delete parent;
-                    return merge_down(next, node, on_heap + 1);
+                    return readd_sizes(parent, node, on_heap);
                 }
                 else
                 {
-                    assert(node->_count > 0);
-                    if(on_heap == std::numeric_limits<int>::min())
-                    {
-                        int depth = 0;
-                        uint16_t length = 0;
-                        uchar* l = (uchar*)&length;
-                        fwdnode_t* tmp = parent;
-
-                        while(tmp != &_root)
-                        {
-                            l[0] = l[1];
-                            l[1] = tmp->_path;
-                            tmp = tmp->_parent;
-                            ++depth;
-                        }
-                        assert(length + 1 >= depth);
-                        on_heap = length;
-                        on_heap -= depth;
-                    }
-
-                    on_heap += 1;
-                    // first copy in path to firsts.
-
-                    assert(on_heap >= 0);
-                    node->_path = parent->_path;
-                    parent->_parent->_children[node->_path] = node;
-                    fwdnode_t* next = parent->_parent;
-                    delete parent;
-                    parent = next;
-                    node->_type = 8;
-
-                    if(on_heap == 0)
-                    {
-                        for(size_t i = 0; i < node->_count; ++i)
-                        {
-                            uchar* f = (uchar*)&node->_data->first(node->_count, i);
-                            f[0] = f[1];
-                            f[1] = node->_path;
-                        }
-                    }
-                    else if(on_heap > 0)
-                    {
-                        size_t nbucketsize = 0;
-                        if(on_heap >= HEAPBOUND)
-                        {
-                            nbucketsize = node->_count * sizeof(size_t);
-                        }
-                        else//if(on_heap < HEAPBOUND)
-                        {
-                            assert(on_heap >= 0);
-                            nbucketsize = on_heap * node->_count;
-                        }
-
-                        inject_byte(node, node->_path, nbucketsize, [on_heap](size_t)
-                        {
-                            return on_heap;
-                        });
-
-                        node->_totsize = nbucketsize;
-                    }
-                    return merge_down(next, node, on_heap + 1);
+                    return readd_byte(parent, node, on_heap);
                 }
             }
             if(parent != &_root)
@@ -1262,114 +1432,12 @@ namespace ptrie {
                 assert(node->_count > 0);
                 return merge_down(parent->_parent, node, on_heap);
             }
+            return true;
         }
         else
         {
-            if(node->_count > SPLITBOUND / 3) return true;
-            uchar path = node->_path;
-            base_t* child;
-            if(path & masks[node->_type - 1])
-            {
-                child = parent->_children[
-                         path & ~masks[node->_type - 1]];
-            }
-            else
-            {
-                child = parent->_children[
-                        path | masks[node->_type - 1]];
-            }
-
-            assert(node != child);
-
-            if(child->_type != node->_type && child->_type != 255)
-            {
-                // The other node is not ready for merging yet.
-                assert(child->_type > node->_type);
-                return false;
-            }
-            else
-            {
-
-                if(child->_type != 255) {
-                    node_t *other = (node_t *) child;
-
-                    const uint nbucketcount = node->_count + other->_count;
-                    const uint nbucketsize = node->_totsize + other->_totsize;
-
-                    if (nbucketcount >= SPLITBOUND)
-                        return false;
-
-                    bucket_t *nbucket = (bucket_t *) new uchar[nbucketsize +
-                                                            bucket_t::overhead(nbucketcount)];
-                    node_t *first = node;
-                    node_t *second = other;
-                    if (path & masks[node->_type - 1]) {
-                        std::swap(first, second);
-                    }
-
-                    memcpy(&nbucket->first(nbucketcount),
-                           &(first->_data->first(first->_count)),
-                           first->_count * sizeof(uint16_t));
-
-                    memcpy(&(nbucket->first(nbucketcount, first->_count)),
-                           &(second->_data->first(second->_count)),
-                           second->_count * sizeof(uint16_t));
-
-                    if constexpr (HAS_ENTRIES) {
-                        // copy over entries
-                        memcpy(nbucket->entries(nbucketcount),
-                               first->_data->entries(first->_count),
-                               first->_count * sizeof(I));
-                        memcpy(&(nbucket->entries(nbucketcount)[first->_count]),
-                               second->_data->entries(second->_count),
-                               second->_count * sizeof(I));
-
-                    }
-
-                    // copy over old data
-                    if (nbucketsize > 0) {
-                        memcpy(nbucket->data(nbucketcount),
-                               first->_data->data(first->_count), first->_totsize);
-
-                        memcpy(&(nbucket->data(nbucketcount)[first->_totsize]),
-                               second->_data->data(second->_count), second->_totsize);
-
-                    }
-                    delete[] (uchar*)node->_data;
-                    node->_data = nbucket;
-                    node->_totsize = nbucketsize;
-                    node->_count = nbucketcount;
-                }
-                uchar from = node->_path & ~masks[node->_type - 1];
-                uchar to = from;
-                for(size_t i = node->_type - 1; i < 8; ++i) {
-                    to = to | masks[i];
-                }
-
-                if(child->_type == 255)
-                {
-                    if(child != parent) return true;
-                    for(size_t i = from; i <= to; ++i)
-                    {
-                        if( parent->_children[i] != child &&
-                            parent->_children[i] != node)
-                            return  true;
-                    }
-                }
-
-                node->_type -= 1;
-                node->_path = from;
-
-                for(size_t i = from; i <= to; ++i)
-                {
-                    assert(parent->_children[i] == child ||
-                       parent->_children[i] == node);
-                    parent->_children[i] = node;
-                }
-                return merge_down(parent, node, on_heap);
-            }
+            return merge_regular(parent, node, on_heap);
         }
-        return true;
     }
 
     template<PTRIETPL>
