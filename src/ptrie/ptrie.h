@@ -1278,7 +1278,7 @@ namespace ptrie {
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         if(byte <= 2)
-            return readd_sizes(node, on_heap, data, byte);
+            return true;//readd_sizes(node, on_heap, data, byte);
         /*
          * We are removing a parent, so we need to re-add the byte from the path
          * here.
@@ -1491,8 +1491,7 @@ namespace ptrie {
             else if(node->_parent != &_root)
             {
                 // we need to re-add path to items here.
-                return true;
-                //return readd_byte(node, on_heap, data, byte);
+                return readd_byte(node, on_heap, data, byte);
             }
             if(node->_parent != &_root)
             {
