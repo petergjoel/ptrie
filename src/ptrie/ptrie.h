@@ -183,14 +183,14 @@ namespace ptrie {
 
         void init();
 
-        void erase(fwdnode_t* parent, node_t* node, size_t bucketid, int byte);
+        void erase(node_t* node, size_t bucketid, int on_heap, const KEY* data, size_t byte);
         // helper-functions for erase
-        bool merge_down(fwdnode_t* parent, node_t* node, int byte);
-        bool merge_regular(fwdnode_t* parent, node_t* node, int on_heap);
+        bool merge_down(node_t* node, int on_heap, const KEY* data, size_t byte);
+        bool merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte);
         bool merge_nodes(node_t* node, node_t* other, uchar path);
-        bool merge_empty(fwdnode_t* parent, node_t* node, int byte);
-        bool readd_sizes(fwdnode_t* parent, node_t* node, int on_heap);
-        bool readd_byte(fwdnode_t* parent, node_t* node, int on_heap);
+        bool merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte);
+        bool readd_sizes(node_t* node, int on_heap, const KEY* data, size_t byte);
+        bool readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte);
 
         void inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> sizes);
         static constexpr uchar masks[4] = {
@@ -1112,20 +1112,23 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool 
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_empty(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
          * If a node is emtpy, we can remove all the way down til we meet some 
          * non-empty node
          */
         assert(node->_count == 0);
+        auto parent = node->_parent;
         for(size_t i = 0; i < WIDTH; ++i) parent->_children[i] = parent;
         delete node;
         do {
             if (parent != &_root) {
                 // we can remove fwd and go back one level
                 parent->_parent->_children[parent->_path] = parent->_parent;
-                ++on_heap;
+                --byte;
+                if((byte % 2) == 0)
+                    ++on_heap;
                 fwdnode_t* next = parent->_parent;
                 delete parent;
                 parent = next;
@@ -1153,8 +1156,7 @@ namespace ptrie {
                 else if(other->_type != 255)
                 {
                     node = (node_t*)other;
-                    assert(false);
-                    return merge_down(parent, node, on_heap);
+                    return merge_down(node, on_heap, data, byte);
                 }
                 else if(other != parent)
                 {
@@ -1228,92 +1230,73 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
+        assert(node);
+        const auto parent = node->_parent;
+        assert(parent);
+        assert(parent->_parent == &_root);
+        assert(byte > 0);
         /*
          * we are re-adding one of the size-bytes. I.e. we are soon at the root
          */
-        assert(node->_count > 0);
-        assert(&_root == node->_parent);
-        uint16_t sizes[WIDTH];
-        size_t totsize = 0;
-        for(size_t i = 0; i < node->_count; ++i)
-        {
-            uint16_t t = 0;
-            uchar* tc = (uchar*)&t;
-            uchar* fc = (uchar*)&node->_data->first(node->_count, i);
-            tc[0] = fc[1];
-            tc[1] = parent->_path;
-            sizes[i] = t;
-            totsize += bytes(sizes[i]);
-        }
-
-        inject_byte(node, parent->_path, totsize, [&sizes](size_t i )
-        {
-            return sizes[i];
-        });
-
         node->_path = parent->_path;
         node->_parent = parent->_parent;
         parent->_parent->_children[node->_path] = node;
-        node->_type = 8;
-        node->_totsize = totsize;
-        fwdnode_t* next = parent->_parent;
+        node->_type = 4;
         delete parent;
-        return merge_down(next, node, on_heap + 1);        
+
+        if((byte % 2) == 0)
+        {
+            assert(node->_count > 0);
+            assert(&_root == parent->_parent);
+            uint16_t sizes[256];
+            size_t totsize = 0;
+            for(size_t i = 0; i < node->_count; ++i)
+            {
+                assert(false);
+                uint16_t t = (byte / 2) + on_heap;
+                uchar* tc = (uchar*)&t;
+                uchar* fc = (uchar*)&node->_data->first(node->_count, i);
+                tc[0] = fc[1];
+                sizes[i] = t;
+                totsize += bytes(sizes[i]);
+            }
+            uchar inject = ((parent->_parent->_path & 0x0F) << 4) | (parent->_path & 0x0F);
+            inject_byte(node, inject, totsize, [&sizes](size_t i )
+            {
+                return sizes[i];
+            });
+            on_heap += 1;
+            node->_totsize = totsize;
+        }
+        return merge_down(node, on_heap, data, byte - 1);
     }
     
     template<PTRIETPL>
     bool 
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
+        if(byte <= 2)
+            return readd_sizes(node, on_heap, data, byte);
         /*
          * We are removing a parent, so we need to re-add the byte from the path
          * here.
          */
         assert(node->_count > 0);
         assert(node->_parent != &_root);
-        if(on_heap == std::numeric_limits<int>::min())
-        {
-            int depth = 0;
-            uint16_t length = 0;
-            uchar* l = (uchar*)&length;
-            fwdnode_t* tmp = parent;
-
-            while(tmp != &_root)
-            {
-                l[0] = l[1];
-                l[1] = tmp->_path;
-                tmp = tmp->_parent;
-                ++depth;
-            }
-            assert(length + 1 >= depth);
-            on_heap = length;
-            on_heap -= depth;
-        }
-
-        on_heap += 1;
-        // first copy in path to firsts.
-
-        assert(on_heap >= 0);
+        auto parent = node->_parent;
         node->_path = parent->_path;
+        node->_parent = parent->_parent;
+        node->_type = 4;
         parent->_parent->_children[node->_path] = node;
-        fwdnode_t* next = parent->_parent;
         delete parent;
-        parent = next;
-        node->_type = 8;
+        
+        if((byte % 2) == 0)
+        {
+            // first copy in path to firsts.
+            on_heap += 1;
 
-        if(on_heap == 0)
-        {
-            for(size_t i = 0; i < node->_count; ++i)
-            {
-                uchar* f = (uchar*)&node->_data->first(node->_count, i);
-                f[0] = f[1];
-                f[1] = node->_path;
-            }
-        }
-        else if(on_heap > 0)
-        {
             size_t nbucketsize = 0;
             if(on_heap >= HEAPBOUND)
             {
@@ -1324,21 +1307,43 @@ namespace ptrie {
                 assert(on_heap >= 0);
                 nbucketsize = on_heap * node->_count;
             }
-
-            inject_byte(node, node->_path, nbucketsize, [on_heap](size_t)
+            assert(byte >= 2);
+            uchar inject = ((parent->_parent->_path & 0x0F) << 4) | (parent->_path & 0x0F);
+            inject_byte(node, inject, nbucketsize, [on_heap](size_t)
             {
                 return on_heap;
             });
 
             node->_totsize = nbucketsize;
         }
-        return merge_down(next, node, on_heap + 1);
+        return merge_down(node, on_heap, data, byte - 1);
     }
     
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
+#ifndef NDEBUG
+            {
+            std::stack<fwdnode_t*> waiting;
+            waiting.push(&_root);
+            while(!waiting.empty())
+            {
+                auto n = waiting.top();
+                waiting.pop();
+                for(size_t i = 0; i < WIDTH; ++i)
+                {
+                    if(n->_children[i]->_type == 255 && n->_children[i] != n)
+                    {
+                        waiting.push((fwdnode_t*)n->_children[i]);
+                    }
+
+                    assert(n->_children[i] == n ||
+                           n->_children[n->_children[i]->_path] == n->_children[i]);
+                }
+            }
+            }
+#endif
         /*
          * We merge a regular node
          */
@@ -1347,6 +1352,7 @@ namespace ptrie {
         if(node->_count > SPLITBOUND / 3) return true;
         uchar path = node->_path;
         base_t* child;
+        auto parent = node->_parent;
         if(path & masks[node->_type - 1])
         {
             child = parent->_children[
@@ -1363,7 +1369,27 @@ namespace ptrie {
         if(child->_type != node->_type && child->_type != 255)
         {
             // The other node is not ready for merging yet.
+            auto other = (node_t*)child;
             assert(child->_type > node->_type);
+            if(node->_count == 0)
+            {
+                uchar from = node->_path;
+                uchar to = from;
+                for(size_t i = node->_type; i < 4; ++i) {
+                    to = to | masks[i];
+                }
+                for(size_t i = from; i <= to; ++i)
+                {
+                    assert(node->_parent->_children[i] == node);
+                    node->_parent->_children[i] = node->_parent;
+                }
+                delete node;
+                return false;
+            }
+            else if(other->_count <= SPLITBOUND / 3)
+            {
+                return merge_down(other, on_heap, data, byte);
+            }
             return false;
         }
         else
@@ -1371,8 +1397,52 @@ namespace ptrie {
 
             if(child->_type != 255) {
                 node_t *other = (node_t *) child;
-                if(!merge_nodes(node, other, path))
-                    return false;
+                if(node->_count == 0)
+                {
+                    if(child->_type == node->_type)
+                    {
+                        uchar from = node->_path & ~masks[node->_type-1];
+                        uchar to = from;
+                        for(size_t i = node->_type - 1; i < 4; ++i) {
+                            to = to | masks[i];
+                        }
+                        for(size_t i = from; i <= to; ++i)
+                            parent->_children[i] = child;
+                        child->_type -= 1;
+                        child->_path = from;
+                        delete node;
+                        return merge_down((node_t*)child, on_heap, data, byte);
+                    }
+                    else
+                    {
+                        uchar from = node->_path & ~masks[node->_type];
+                        uchar to = from;
+                        for(size_t i = node->_type; i < 4; ++i) {
+                            to = to | masks[i];
+                        }
+                        for(size_t i = from; i <= to; ++i)
+                            parent->_children[i] = parent;
+                        delete node;
+                        return false;
+                    }
+                }
+                else
+                {
+                    if(!merge_nodes(node, other, path))
+                        return false;
+                }
+            } 
+            else if(node->_count == 0)
+            {
+                uchar from = node->_path & ~masks[node->_type];
+                uchar to = from;
+                for(size_t i = node->_type; i < 4; ++i) {
+                    to = to | masks[i];
+                }
+                for(size_t i = from; i <= to; ++i)
+                    parent->_children[i] = parent;
+                delete node;
+                return false;
             }
             uchar from = node->_path & ~masks[node->_type - 1];
             uchar to = from;
@@ -1382,12 +1452,14 @@ namespace ptrie {
 
             if(child->_type == 255)
             {
-                if(child != parent) return true;
+                if(child != node->_parent) return false;
                 for(size_t i = from; i <= to; ++i)
                 {
                     if( parent->_children[i] != child &&
                         parent->_children[i] != node)
+                    {
                         return  true;
+                    }
                 }
             }
 
@@ -1400,54 +1472,50 @@ namespace ptrie {
                    parent->_children[i] == node);
                 parent->_children[i] = node;
             }
-            return merge_down(parent, node, on_heap);
+            return merge_down(node, on_heap, data, byte);
         }
     }
     
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(fwdnode_t* parent, node_t* node, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
+        if(node->_count > SPLITBOUND/3) return true;
+
         if(node->_type == 0)
         {
-            if(node->_count < SPLITBOUND/3) return true;
             if(node->_count == 0)
             {
-                return merge_empty(parent, node, on_heap);
+                return merge_empty(node, on_heap, data, byte);
             }
-            else if(parent != &_root)
+            else if(node->_parent != &_root)
             {
                 // we need to re-add path to items here.
-                if(parent->_parent == &_root) {
-                    // something
-                    return readd_sizes(parent, node, on_heap);
-                }
-                else
-                {
-                    return readd_byte(parent, node, on_heap);
-                }
+                return true;
+                //return readd_byte(node, on_heap, data, byte);
             }
-            if(parent != &_root)
+            if(node->_parent != &_root)
             {
                 assert(node->_count > 0);
-                return merge_down(parent->_parent, node, on_heap);
+                return merge_down(node, on_heap, data, byte);
             }
             return true;
         }
         else
         {
-            return merge_regular(parent, node, on_heap);
+            return merge_regular(node, on_heap, data, byte);
         }
     }
 
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(fwdnode_t* parent, node_t* node, size_t bindex, int on_heap)
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(node_t* node, size_t bindex, int on_heap, const KEY* data, size_t byte)
     {
         
         // first find size and amount before
         uint16_t size = 0;
         uint16_t before = 0;
+        auto parent = node->_parent;
         if (parent == &_root)
         {
             for(size_t i = 0; i < bindex; ++i)
@@ -1459,11 +1527,11 @@ namespace ptrie {
         else if(parent->_parent == &_root) {
              for(size_t i = 0; i <= bindex; ++i)
              {
-                 uint16_t t = 0;
+                 assert(false);
+                 uint16_t t = on_heap+1;
                  uchar* tc = (uchar*)&t;
                  uchar* fc = (uchar*)&node->_data->first(node->_count, i);
                  tc[0] = fc[1];
-                 tc[1] = parent->_path;
                  --t;
                  if(i == bindex) size = t;
                  else before += bytes(t);
@@ -1535,8 +1603,60 @@ namespace ptrie {
             node->_count = 0;
             node->_totsize = 0;
         }
-
-        merge_down(parent, node, on_heap);
+/*#ifndef NDEBUG
+            {
+            std::stack<fwdnode_t*> waiting;
+            waiting.push(&_root);
+            while(!waiting.empty())
+            {
+                auto n = waiting.top();
+                waiting.pop();
+                for(size_t i = 0; i < WIDTH; ++i)
+                {
+                    if(n->_children[i]->_type == 255 && n->_children[i] != n)
+                    {
+                        waiting.push((fwdnode_t*)n->_children[i]);
+                    }
+                    assert(n->_children[i] == n ||
+                           n->_children[n->_children[i]->_path] == n->_children[i]);
+                }
+            }
+            }
+#endif*/
+        merge_down(node, on_heap, data, byte);
+        /*
+#ifndef NDEBUG
+            {
+            std::stack<fwdnode_t*> waiting;
+            waiting.push(&_root);
+            while(!waiting.empty())
+            {
+                auto n = waiting.top();
+                waiting.pop();
+                for(size_t i = 0; i < WIDTH; ++i)
+                {
+                    if(n->_children[i]->_type == 255 && n->_children[i] != n)
+                    {
+                        waiting.push((fwdnode_t*)n->_children[i]);
+                    }
+                    else if(n->_children[i]->_type <= 4)
+                    {
+                        if(((node_t*)n->_children[i])->_count == 0)
+                        {
+                            merge_down(node, on_heap, data, byte);
+                        }
+                    }
+                    assert(n->_children[i] == n ||
+                           n->_children[n->_children[i]->_path] == n->_children[i]);
+                }
+            }
+            }
+#endif
+        if(_root._children[0]->_type == 0 &&
+           ((node_t*)_root._children[0])->_count == 0)
+        {
+            merge_down(node, on_heap, data, byte);
+        }*/
     }
 
     template<PTRIETPL>
@@ -1549,10 +1669,10 @@ namespace ptrie {
 
         fwdnode_t* fwd = &_root;
         base_t* base = nullptr;
-        uint byte = 0;
+        uint p_byte = 0;
 
         b_index = 0;
-        bool res = this->best_match(data, length, &fwd, &base, byte, b_index);
+        bool res = this->best_match(data, length, &fwd, &base, p_byte, b_index);
         if(!res || (size_t)fwd == (size_t)base)
         {
             assert(!this->exists(data, length).first);
@@ -1561,9 +1681,11 @@ namespace ptrie {
         else
         {
             int onheap = size;
-            onheap -= byte;
-            erase(fwd, (node_t *) base, b_index, onheap);
+            onheap -= p_byte/2;
+
+            erase((node_t *) base, b_index, onheap, data, p_byte);
             assert(!this->exists(data, length).first);
+
             return true;
         }
     }
