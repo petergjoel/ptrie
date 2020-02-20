@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1Key)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 512; seed < (512+10); ++seed) {
-        ptrie::map<unsigned char,size_t,sizeof(size_t ) + 1, 4> set;
+        ptrie::map<unsigned char,size_t,sizeof(size_t ) + 1, 6> set;
         for(size_t i = 0; i < 1024*10; ++i) {
             auto data = rand_data(i + seed, 20);
             auto res = set.insert(data.first.get(), data.second);

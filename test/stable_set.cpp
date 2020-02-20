@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set_stable<unsigned char, sizeof(size_t)+1, 4> set;
+        set_stable<unsigned char, sizeof(size_t)+1, 6> set;
         vector<size_t> ids;
         auto scratchpad = std::make_unique<unsigned char[]>(20+sizeof(size_t));
 
