@@ -293,10 +293,9 @@ namespace ptrie {
 
     template<PTRIETPL>
     base_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& p_byte) const {
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fast_forward(const KEY* data, size_t s, fwdnode_t** tree_pos, uint& p_byte) const {
         fwdnode_t* t_pos = *tree_pos;
 
-        uint16_t s = length*byte_iterator<KEY>::element_size(); // TODO remove minus to
         uchar* sc = (uchar*) & s;
         
         do {
@@ -326,13 +325,12 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::bucket_search(const KEY* target, size_t length, node_t* node, uint& b_index, uint byte) const {
+    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::bucket_search(const KEY* target, size_t size, node_t* node, uint& b_index, uint byte) const {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
         // heap-allocation happens!
         bool found = false;
-        const auto size = length*byte_iterator<KEY>::element_size();
         uint16_t encsize;
         if (size > byte) {
             encsize = byte > 0 ? size - byte : size;
@@ -350,7 +348,7 @@ namespace ptrie {
             }
         } else {
             tf[1] = byte_iterator<KEY>::const_access(target, -2 + byte);
-            if(byte - 1 < length)
+            if(byte - 1 < size)
                 tf[0] = byte_iterator<KEY>::const_access(target, -2 + byte + 1);
             else
                 tf[0] = 0;
@@ -843,7 +841,7 @@ namespace ptrie {
         uint byte = 0;
 
         b_index = 0;
-        bool res = best_match(data, length, &fwd, &base, byte, b_index);
+        bool res = best_match(data, length*byte_iterator<KEY>::element_size(), &fwd, &base, byte, b_index);
         returntype_t ret = returntype_t(res, std::numeric_limits<size_t>::max());
         if((size_t)fwd != (size_t)base) {
             node_t* node = (node_t*)base;
@@ -866,7 +864,7 @@ namespace ptrie {
         base_t* base = nullptr;
         uint p_byte = 0;
 
-        bool res = best_match(data, length, &fwd, &base, p_byte, b_index);
+        bool res = best_match(data, size, &fwd, &base, p_byte, b_index);
         if (res) { // We are not inserting duplicates, semantics of PTrie is a set.
             returntype_t ret(false, 0);
             if constexpr (HAS_ENTRIES) {
@@ -946,7 +944,7 @@ namespace ptrie {
         uchar* f = (uchar*) & nbucket->first(nbucketcount, b_index);
         if (byte >= 2) {
             f[1] = byte_iterator<KEY>::const_access(data, -2 + byte);
-            if(byte - 1 < length)
+            if(byte - 1 < size)
                 f[0] = byte_iterator<KEY>::const_access(data, -2 + byte + 1);
             else
                 f[0] = 0;
@@ -1692,7 +1690,7 @@ namespace ptrie {
         uint p_byte = 0;
 
         b_index = 0;
-        bool res = this->best_match(data, length, &fwd, &base, p_byte, b_index);
+        bool res = this->best_match(data, size, &fwd, &base, p_byte, b_index);
         if(!res || (size_t)fwd == (size_t)base)
         {
             assert(!this->exists(data, length).first);

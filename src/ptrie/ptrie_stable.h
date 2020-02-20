@@ -97,19 +97,22 @@ namespace ptrie {
             path.push(par->_path);
             par = par->_parent;
         }
-
+        
         size = 0;
         offset = 0;
-        ps = path.size();
+        ps = path.size()/2;
         if (ps <= 1) {
             size = node->_data->first(0, bindex);
             if (ps == 1) {
                 size >>= 8;
                 uchar* bs = (uchar*) & size;
-                bs[1] = path.top();
-                path.pop();
+                for(auto i = 0; i < 2; ++i)
+                {
+                    bs[1] <<= 4;
+                    bs[1] |= path.top();
+                    path.pop();
+                }
             }
-
             uint16_t o = size;
             for (size_t i = 0; i < bindex; ++i) {
 
@@ -124,11 +127,12 @@ namespace ptrie {
                 offset += pt::bytes(f);
             }
         } else {
-            uchar* bs = (uchar*) & size;
-            bs[1] = path.top();
-            path.pop();
-            bs[0] = path.top();
-            path.pop();
+            for(auto i = 0; i < 4; ++i)
+            {
+                size <<= 4;
+                size |= path.top();
+                path.pop();
+            }
             offset = (pt::bytes(size - ps) * bindex);
         }        
         return node;
@@ -156,9 +160,15 @@ namespace ptrie {
         uint16_t first = node->_data->first(0, bindex);
 
         size_t pos = 0;
-        while (!path.empty()) {
-            byte_iterator<KEY>::access(dest, pos) = path.top();
-            path.pop();
+        while (path.size() >= 2) {
+            uchar b = 0;
+            for(auto i = 0; i < 2; ++i)
+            {
+                b <<= 4;
+                b |= path.top();
+                path.pop();
+            }
+            byte_iterator<KEY>::access(dest, pos) = b;
             ++pos;
         }
 
