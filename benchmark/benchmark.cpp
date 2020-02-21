@@ -29,6 +29,7 @@
 #include "MurmurHash2.h"
 #include "utils.h"
 #include "binarywrapper.h"
+#include "bounds.h"
 
 using namespace ptrie;
 
@@ -224,7 +225,7 @@ int main(int argc, const char** argv)
     if(strcmp(type, "ptrie") == 0)
     {
         print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
-        set<> set;
+        set<unsigned char, HEAPBOUND, SPLITBOUND> set;
         set_insert_ptrie(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else if (strcmp(type, "std") == 0) {
