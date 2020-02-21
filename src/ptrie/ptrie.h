@@ -192,7 +192,7 @@ namespace ptrie {
 
         void split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
 
-        static inline uint16_t bytes(const uint16_t d) {
+        static constexpr uint16_t bytes(const uint16_t d) {
             if (d >= HEAPBOUND) return sizeof (uchar*);
             else return d;
         }
