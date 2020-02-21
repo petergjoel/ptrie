@@ -106,11 +106,8 @@ namespace ptrie {
         struct fwdnode_t;
         struct node_t;
 
-        static_assert(HEAPBOUND * (sizeof(fwdnode_t)/sizeof(size_t)) < std::numeric_limits<uint16_t>::max(),
-                "HEAPBOUND * (sizeof(fwdnode_t)/sizeof(fwdnode_t)) should be less than 2^16");
-
-        static_assert(SPLITBOUND < sizeof(fwdnode_t),
-                "SPLITBOUND should be less than sizeof(fwdnode_t)");
+        static_assert(HEAPBOUND * SPLITBOUND < std::numeric_limits<uint16_t>::max(),
+                "HEAPBOUND * SPLITBOUND should be less than 2^16");
 
         static_assert(SPLITBOUND >= 6,
                 "SPLITBOUND MUST BE LARGER THAN 6");
