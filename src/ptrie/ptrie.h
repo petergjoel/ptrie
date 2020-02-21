@@ -549,13 +549,15 @@ namespace ptrie {
         node->_totsize = hsize > 0 ? hsize : 0;
         node->_count = hcnt;
         if (hcnt == 0) node->_data = nullptr;
-        else node->_data = (bucket_t*) new uchar[node->_totsize + 
+        else if(to_cut != 0 || lcnt != 0) 
+            node->_data = (bucket_t*) new uchar[node->_totsize + 
                 bucket_t::overhead(node->_count)];
 
         lown._totsize = lsize > 0 ? lsize : 0;
         lown._count = lcnt;
         if (lcnt == 0) lown._data = nullptr;
-        else lown._data = (bucket_t*) new uchar[lown._totsize +
+        else if(to_cut != 0 || hcnt != 0) 
+            lown._data = (bucket_t*) new uchar[lown._totsize +
                 bucket_t::overhead(lown._count)];
 
         // copy values
@@ -611,7 +613,7 @@ namespace ptrie {
             bcnt += bytes(lengths[i]);       
         };
 
-        {   // migrate data
+        if(std::min(lcnt, hcnt) != 0 || to_cut != 0) {   // migrate data
             auto i = 0;
             for (; i < lown._count; ++i)
                 move_data(i, bucket, bucketsize, lown, 0, lengths, bcnt, lbcnt, to_cut);
@@ -621,21 +623,31 @@ namespace ptrie {
         }
 
         if (lcnt == 0) {
-            if constexpr (HAS_ENTRIES)
-                memcpy(node->_data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
-            delete[] (uchar*)bucket;
-            lown._data = nullptr;
+            if(to_cut != 0)
+            {
+                if constexpr (HAS_ENTRIES)
+                    memcpy(node->_data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
+                delete[] (uchar*)bucket;
+                lown._data = nullptr;
+            } else node->_data = bucket;
+            
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = fwd_n;
             for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = node;
+            
             split_node(node, fwd_n, locked, bsize > 0 ? bsize - to_cut : 0, p_byte + 1);
         }
         else if (hcnt == 0) {
-            if constexpr (HAS_ENTRIES)
-                memcpy(lown._data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
+            if(to_cut != 0)
+            {
+                if constexpr (HAS_ENTRIES)
+                    memcpy(lown._data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
+                delete[] (uchar*)bucket;
+                node->_data = lown._data;
+            } else node->_data = bucket;
+            
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = node;
             for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = fwd_n;
-            delete[] (uchar*)bucket;
-            node->_data = lown._data;
+            
             node->_path = lown._path;
             assert(node->_path < WIDTH);
             node->_count = lown._count;
