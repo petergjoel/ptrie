@@ -472,7 +472,7 @@ namespace ptrie {
     template<PTRIETPL>
     void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t p_byte) 
     {
-        if(bsize+1 == p_byte/2)
+        if(bsize+1 == p_byte/BDIV)
         {
             assert(node->_count <= 256);
             return;
@@ -504,14 +504,14 @@ namespace ptrie {
         int lsize = 0;
         int hsize = 0;
         bucket_t* bucket = node->_data;
-        const auto to_cut = (p_byte % 2);
+        const auto to_cut = ((p_byte+1) % BDIV) == 0 ? 1 : 0;
 
         // get sizes
         uint16_t lengths[SPLITBOUND];
         for (int i = 0; i < bucketsize; ++i) {
 
             lengths[i] = bsize;
-            if (p_byte < 4) {
+            if (p_byte < BDIV*2) {
                 uchar* f = (uchar*)&(bucket->first(bucketsize, i));
                 uchar* d = (uchar*)&(lengths[i]);
                 if (p_byte > 1) {
@@ -523,8 +523,8 @@ namespace ptrie {
                     d[1] = f[1];
                 }
             }
-            uchar b = ((uchar*)&bucket->first(bucketsize, i))[(p_byte + 1) % 2];
-            b = (b >> (((p_byte)%2)*BSIZE)) & _masks[0];
+            uchar b = ((uchar*)&bucket->first(bucketsize, i))[1-to_cut];
+            b = (b >> ((p_byte % BDIV)*BSIZE)) & _masks[0];
             if (b == 0) {
                 ++lcnt;
                 if (lengths[i] < (HEAPBOUND + to_cut)) {
@@ -679,7 +679,6 @@ namespace ptrie {
                 }
             }
             delete[] (uchar*)bucket;
-            return;
         }
     }
 
