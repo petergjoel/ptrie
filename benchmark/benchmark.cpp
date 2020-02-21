@@ -19,8 +19,6 @@
 #include <iostream>
 #include <ptrie/ptrie.h>
 #include <stdlib.h>
-#include <sparsehash/sparse_hash_set>
-#include <sparsehash/dense_hash_set>
 //#include <tbb/concurrent_unordered_set.h>
 #include <random>
 #include <ptrie/ptrie_stable.h>
@@ -231,30 +229,6 @@ int main(int argc, const char** argv)
     else if (strcmp(type, "std") == 0) {
         print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
         std::unordered_set<wrapper_t, hasher_o, equal_o> set;
-        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
-    }
-    /*else if(strcmp(type, "tbb") == 0)
-    {
-        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
-        tbb::concurrent_unordered_set<wrapper_t, hasher_o, equal_o> set;
-        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
-    }*/
-    else if(strcmp(type, "sparse") == 0)
-    {
-        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
-        google::sparse_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
-        set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
-    }
-    else if(strcmp(type, "dense") == 0)
-    {
-        print_settings(type, elements, seed, bytes, deletes, read_rate, maxval);
-        google::dense_hash_set<wrapper_t, hasher_o, equal_o> set(elements/10);
-        wrapper_t empty;
-        empty._hash = 0;
-        wrapper_t del;
-        del._hash = std::numeric_limits<uint64_t>::max();
-        set.set_empty_key(empty);
-        if(deletes > 0.0) set.set_deleted_key(del);
         set_insert(set, elements, seed, bytes, deletes, read_rate, maxval);
     }
     else
