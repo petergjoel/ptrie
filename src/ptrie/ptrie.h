@@ -1325,7 +1325,7 @@ namespace ptrie {
                 assert(on_heap >= 0);
                 nbucketsize = on_heap * node->_count;
             }
-            uchar inject = ((parent->_parent->_path & 0x0F) << WIDTH) | (parent->_path & 0x0F);
+            uchar inject = ((parent->_parent->_path & 0x0F) << BSIZE) | (parent->_path & 0x0F);
 
             inject_byte(node, inject, nbucketsize, [on_heap](size_t)
             {
