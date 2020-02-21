@@ -166,6 +166,16 @@ namespace ptrie {
                 assert(_parent != nullptr);
                 return 1 + _parent->dist_to(other);
             }
+            
+            uchar get_byte() const {
+                return _get_byte(BDIV);
+            }
+            
+            constexpr uchar _get_byte(size_t i) const
+            {
+                if(i == 1) return _path;
+                return _path | (_parent->_get_byte(i-1) << BSIZE);
+            }
         };
 
         std::shared_ptr<linked_bucket_t<entry_t, ALLOCSIZE>> _entries = nullptr;
@@ -1277,7 +1287,7 @@ namespace ptrie {
                 sizes[i] = t;
                 totsize += bytes(sizes[i]);
             }
-            uchar inject = ((parent->_parent->_path & 0x0F) << BSIZE) | (parent->_path & 0x0F);
+            auto inject = parent->get_byte();
             inject_byte(node, inject, totsize, [&sizes](size_t i )
             {
                 return sizes[i];
@@ -1322,8 +1332,8 @@ namespace ptrie {
                 assert(on_heap >= 0);
                 nbucketsize = on_heap * node->_count;
             }
-            uchar inject = ((parent->_parent->_path & 0x0F) << BSIZE) | (parent->_path & 0x0F);
-
+            
+            uchar inject = parent->get_byte();
             inject_byte(node, inject, nbucketsize, [on_heap](size_t)
             {
                 return on_heap;
