@@ -209,16 +209,18 @@ namespace ptrie {
         bool readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte);
 
         void inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> sizes);
-        static constexpr uchar masks[4] = {
-/*            static_cast <uchar>(0x80),
+        
+        static constexpr uchar _all_masks[8] = {
+            static_cast <uchar>(0x80),
             static_cast <uchar>(0x40),
             static_cast <uchar>(0x20),
-            static_cast <uchar>(0x10),*/
+            static_cast <uchar>(0x10),
             static_cast <uchar>(0x08),
             static_cast <uchar>(0x04),
             static_cast <uchar>(0x02),
             static_cast <uchar>(0x01)
         };
+        static constexpr const uchar* _masks = &_all_masks[8-BSIZE];
 
     public:
         set();
@@ -487,7 +489,7 @@ namespace ptrie {
         assert(fwd_n->_path < WIDTH);
         
         lown._path = 0;
-        node->_path = masks[0];
+        node->_path = _masks[0];
         assert(node->_path < WIDTH);
         lown._type = 1;
         node->_type = 1;
@@ -522,7 +524,7 @@ namespace ptrie {
                 }
             }
             uchar b = ((uchar*)&bucket->first(bucketsize, i))[(p_byte + 1) % 2];
-            b = (b >> (((p_byte)%2)*BSIZE)) & masks[0];
+            b = (b >> (((p_byte)%2)*BSIZE)) & _masks[0];
             if (b == 0) {
                 ++lcnt;
                 if (lengths[i] < (HEAPBOUND + to_cut)) {
@@ -687,8 +689,8 @@ namespace ptrie {
         assert(hnode._type <= BSIZE);
         assert(node->_type <= BSIZE);
 
-        assert((node->_path & masks[node->_type]) == 0);
-        hnode._path = node->_path | masks[node->_type];
+        assert((node->_path & _masks[node->_type]) == 0);
+        hnode._path = node->_path | _masks[node->_type];
         assert(hnode._path < WIDTH);
             
         // because we are only really shifting around bits when enc_pos % 8 = 0
@@ -711,7 +713,7 @@ namespace ptrie {
 
             uchar* f = (uchar*) & node->_data->first(bucketsize, i);
             uchar fb = (f[1] >> ((p_byte+1) % 2)*BSIZE) & 0x0F; 
-            if ((fb & masks[r_pos]) > 0) {
+            if ((fb & _masks[r_pos]) > 0) {
 #ifndef NDEBUG
                 high = true;
 #else
@@ -905,13 +907,13 @@ namespace ptrie {
             do {
                 --bit;
 
-                min = min & (~masks[bit]);
-                max |= masks[bit];
+                min = min & (~_masks[bit]);
+                max |= _masks[bit];
                 for (int i = min; i <= max ; ++i) {
                     if(fwd->_children[i] != fwd)
                     {
-                        max = (max & ~masks[bit]) | (masks[bit] & b);
-                        min = min | (masks[bit] & b);
+                        max = (max & ~_masks[bit]) | (_masks[bit] & b);
+                        min = min | (_masks[bit] & b);
                         bit += 1;
                         stop = true;
                         break;
@@ -1213,7 +1215,7 @@ namespace ptrie {
                                                 bucket_t::overhead(nbucketcount)];
         node_t *first = node;
         node_t *second = other;
-        if (path & masks[node->_type - 1]) {
+        if (path & _masks[node->_type - 1]) {
             std::swap(first, second);
         }
 
@@ -1380,15 +1382,15 @@ namespace ptrie {
         uchar path = node->_path;
         base_t* child;
         auto parent = node->_parent;
-        if(path & masks[node->_type - 1])
+        if(path & _masks[node->_type - 1])
         {
             child = parent->_children[
-                     path & ~masks[node->_type - 1]];
+                     path & ~_masks[node->_type - 1]];
         }
         else
         {
             child = parent->_children[
-                    path | masks[node->_type - 1]];
+                    path | _masks[node->_type - 1]];
         }
 
         assert(node != child);
@@ -1403,7 +1405,7 @@ namespace ptrie {
                 uchar from = node->_path;
                 uchar to = from;
                 for(size_t i = node->_type; i < BSIZE; ++i) {
-                    to = to | masks[i];
+                    to = to | _masks[i];
                 }
                 for(size_t i = from; i <= to; ++i)
                 {
@@ -1432,7 +1434,7 @@ namespace ptrie {
                             if(c == node)
                                 c = child;
                         child->_type -= 1;
-                        child->_path &= ~masks[node->_type - 1];
+                        child->_path &= ~_masks[node->_type - 1];
                         assert(child->_path < WIDTH);
                         delete node;
                         return merge_down((node_t*)child, on_heap, data, byte);
@@ -1460,10 +1462,10 @@ namespace ptrie {
                 delete node;
                 return false;
             }
-            uchar from = node->_path & ~masks[node->_type - 1];
+            uchar from = node->_path & ~_masks[node->_type - 1];
             uchar to = from;
             for(size_t i = node->_type - 1; i < BSIZE; ++i) {
-                to = to | masks[i];
+                to = to | _masks[i];
             }
 
             if(child->_type == 255)
