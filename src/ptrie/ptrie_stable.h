@@ -106,9 +106,9 @@ namespace ptrie {
             if (ps == 1) {
                 size >>= 8;
                 uchar* bs = (uchar*) & size;
-                for(auto i = 0; i < 2; ++i)
+                for(auto i = 0; i < pt::BDIV; ++i)
                 {
-                    bs[1] <<= 4;
+                    bs[1] <<= pt::BSIZE;
                     bs[1] |= path.top();
                     path.pop();
                 }
@@ -127,9 +127,9 @@ namespace ptrie {
                 offset += pt::bytes(f);
             }
         } else {
-            for(auto i = 0; i < 4; ++i)
+            for(auto i = 0; i < pt::BDIV*2; ++i)
             {
-                size <<= 4;
+                size <<= pt::BSIZE;
                 size |= path.top();
                 path.pop();
             }
@@ -160,11 +160,11 @@ namespace ptrie {
         uint16_t first = node->_data->first(0, bindex);
 
         size_t pos = 0;
-        while (path.size() >= 2) {
+        while (path.size() >= pt::BDIV) {
             uchar b = 0;
-            for(auto i = 0; i < 2; ++i)
+            for(auto i = 0; i < pt::BDIV; ++i)
             {
-                b <<= 4;
+                b <<= pt::BSIZE;
                 b |= path.top();
                 path.pop();
             }

@@ -167,7 +167,7 @@ namespace ptrie {
                 return 1 + _parent->dist_to(other);
             }
             
-            uchar get_byte() const {
+            constexpr uchar get_byte() const {
                 return _get_byte(BDIV);
             }
             
