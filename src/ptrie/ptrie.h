@@ -103,6 +103,7 @@ namespace ptrie {
         static constexpr auto BSIZE = 4;
         static constexpr auto WIDTH = BSIZE*BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
+        static constexpr auto FILTER = 0x0F;
         struct fwdnode_t;
         struct node_t;
 
@@ -693,7 +694,7 @@ namespace ptrie {
         }
 
         const uint16_t bucketsize = node->_count;
-        const auto byte = p_byte / 2;
+        const auto byte = p_byte / BDIV;
         
         node_t hnode;
         hnode._type = node->_type + 1;
@@ -723,7 +724,7 @@ namespace ptrie {
         for (size_t i = 0; i < bucketsize; i++) {
 
             uchar* f = (uchar*) & node->_data->first(bucketsize, i);
-            uchar fb = (f[1] >> ((p_byte+1) % 2)*BSIZE) & 0x0F; 
+            uchar fb = (f[1] >> (((BDIV-1)-p_byte) % BDIV)*BSIZE) & FILTER; 
             if ((fb & _masks[r_pos]) > 0) {
 #ifndef NDEBUG
                 high = true;
@@ -759,7 +760,7 @@ namespace ptrie {
         node->_count = lcnt;
         node->_totsize = lsize;
 
-        if(byte >= 2)
+        if(byte >= BDIV*2)
         {
             assert(hnode._totsize == bytes(bsize) * hnode._count);
             assert(node->_totsize == bytes(bsize) * node->_count);
@@ -840,14 +841,8 @@ namespace ptrie {
             }
 
             delete[] (uchar*)old;
-            if(node->_count >= SPLITBOUND && node->_count >= h_node->_count)
-            {
-                split_node(node, jumppar, locked, bsize, p_byte);
-            }
-            if(h_node->_count >= SPLITBOUND)
-            {
-                split_node(h_node, jumppar, nullptr, bsize, p_byte);
-            }
+            assert(node->_count < SPLITBOUND || (bsize+1 == p_byte/BDIV));
+            assert(h_node->_count < SPLITBOUND || (bsize+1 == p_byte/BDIV));
         }
     }
 
