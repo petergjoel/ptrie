@@ -100,7 +100,7 @@ namespace ptrie {
     >
     class set {
     protected:
-        static constexpr auto BSIZE = 4;
+        static constexpr auto BSIZE = 8;
         static constexpr auto WIDTH = BSIZE*BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);

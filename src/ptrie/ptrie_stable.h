@@ -108,7 +108,8 @@ namespace ptrie {
                 uchar* bs = (uchar*) & size;
                 for(auto i = 0; i < pt::BDIV; ++i)
                 {
-                    bs[1] <<= pt::BSIZE;
+                    if constexpr (pt::BSIZE < 8)
+                        bs[1] <<= pt::BSIZE;
                     bs[1] |= path.top();
                     path.pop();
                 }
@@ -164,7 +165,8 @@ namespace ptrie {
             uchar b = 0;
             for(auto i = 0; i < pt::BDIV; ++i)
             {
-                b <<= pt::BSIZE;
+                if constexpr (pt::BSIZE < 8)
+                    b <<= pt::BSIZE;
                 b |= path.top();
                 path.pop();
             }
