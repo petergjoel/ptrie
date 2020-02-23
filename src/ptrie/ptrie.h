@@ -100,7 +100,7 @@ namespace ptrie {
     >
     class set {
     protected:
-        static constexpr auto BSIZE = 8;
+        static constexpr auto BSIZE = 4;
         static constexpr auto WIDTH = 1 << BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);
@@ -189,9 +189,9 @@ namespace ptrie {
 
         bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index) const;
 
-        void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
+        void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t byte);
 
-        void split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t byte);
+        void split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t byte);
 
         static constexpr uint16_t bytes(const uint16_t d) {
             if (d >= HEAPBOUND) return sizeof (uchar*);
@@ -473,9 +473,9 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t p_byte) 
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
     {
-        if(bsize == 0)
+        if(bsize == -1)
         {
             assert(node->_count <= 256);
             return;
@@ -517,7 +517,7 @@ namespace ptrie {
         uint16_t lengths[SPLITBOUND];
         for (int i = 0; i < bucketsize; ++i) {
 
-            lengths[i] = bsize;
+            lengths[i] = std::max(bsize, 0);
             if (p_byte < BDIV*2) {
                 uchar* f = (uchar*)&(bucket->first(bucketsize, i));
                 uchar* d = (uchar*)&(lengths[i]);
@@ -643,7 +643,7 @@ namespace ptrie {
             for (size_t i = 0; i < WIDTH/2; ++i) fwd_n->_children[i] = fwd_n;
             for (size_t i = WIDTH/2; i < WIDTH; ++i) fwd_n->_children[i] = node;
             
-            split_node(node, fwd_n, locked, bsize > 0 ? bsize - to_cut : 0, p_byte + 1);
+            split_node(node, fwd_n, locked, bsize - to_cut, p_byte + 1);
         }
         else if (hcnt == 0) {
             if(to_cut != 0)
@@ -662,7 +662,7 @@ namespace ptrie {
             node->_count = lown._count;
             node->_totsize = lown._totsize;
             node->_type = lown._type;
-            split_node(node, fwd_n, locked, bsize > 0 ? bsize - to_cut : 0, p_byte + 1);
+            split_node(node, fwd_n, locked, bsize - to_cut, p_byte + 1);
         } else {
             node_t* low_n = new node_t;
             low_n->_data = lown._data;
@@ -692,9 +692,10 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t p_byte) {
+    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) {
 
-        assert(bsize != std::numeric_limits<size_t>::max());
+        assert(bsize >= -1);
+        assert(bsize < std::numeric_limits<int32_t>::max());
         if (node->_type == BSIZE) // new fwd node!
         {
             split_fwd(node, jumppar, locked, bsize, p_byte);
@@ -750,12 +751,12 @@ namespace ptrie {
                         fcc[0] = f[0];
                         fcc[1] = f[1];
                     } else {
-                        fc = (bsize + byte);
+                        fc = (std::max(bsize,0) + byte);
                         fcc[0] = f[1];
                         fc -= byte;
                     }
                 } else {
-                    fc = bsize;
+                    fc = std::max(bsize,0);
                 }
                 lsize += bytes(fc);
             }
@@ -770,8 +771,8 @@ namespace ptrie {
 
         if(byte >= 2)
         {
-            assert(hnode._totsize == bytes(bsize) * hnode._count);
-            assert(node->_totsize == bytes(bsize) * node->_count);
+            assert(hnode._totsize == bytes(std::max(bsize,0)) * hnode._count);
+            assert(node->_totsize == bytes(std::max(bsize,0)) * node->_count);
         }
 
         size_t dist = (hnode._path - node->_path);
@@ -849,8 +850,8 @@ namespace ptrie {
             }
 
             delete[] (uchar*)old;
-            assert(node->_count < SPLITBOUND || (bsize+1 == p_byte/BDIV));
-            assert(h_node->_count < SPLITBOUND || (bsize+1 == p_byte/BDIV));
+            assert(node->_count < SPLITBOUND || (std::max(bsize,0)+1 == p_byte/BDIV));
+            assert(h_node->_count < SPLITBOUND || (std::max(bsize,0)+1 == p_byte/BDIV));
         }
     }
 
@@ -945,11 +946,11 @@ namespace ptrie {
         }
 
         // make a new bucket, add new entry, copy over old data
-        const auto nenc_size = size >= byte ? size-byte : 0;
+        const int32_t nenc_size = ((int32_t)size)-byte;
 
         
         uint nbucketcount = node->_count + 1;
-        uint nitemsize = nenc_size;
+        uint nitemsize = std::max(nenc_size, 0);
         bool copyval = true;
         if (nitemsize >= HEAPBOUND) {
             copyval = false;
@@ -998,7 +999,7 @@ namespace ptrie {
 
 
         uint tmpsize = 0;
-        if (byte >= 2) tmpsize = b_index * bytes(nenc_size);
+        if (byte >= 2) tmpsize = b_index * bytes(std::max(nenc_size, 0));
         else {
             uint16_t o = size;
             for (size_t i = 0; i < b_index; ++i) {
@@ -1025,22 +1026,22 @@ namespace ptrie {
         if (copyval) {
             if constexpr (byte_iterator<KEY>::continious())
                 memcpy(&(nbucket->data(nbucketcount)[tmpsize]),
-                        &byte_iterator<KEY>::const_access(data, byte), nenc_size);
+                        &byte_iterator<KEY>::const_access(data, byte), std::max(nenc_size, 0));
             else
             {
-                for(size_t i = 0; i < nenc_size; ++i)
+                for(auto i = 0; i < nenc_size; ++i)
                     nbucket->data(nbucketcount)[tmpsize+i] = 
                             byte_iterator<KEY>::const_access(data, byte+i);
             }
         } else {
             // alloc space
-            uchar* dest = new uchar[nenc_size];
+            uchar* dest = new uchar[std::max(nenc_size, 0)];
 
             // copy data to heap
             if constexpr (byte_iterator<KEY>::continious())
-                memcpy(dest, &byte_iterator<KEY>::const_access(data, byte), nenc_size);
+                memcpy(dest, &byte_iterator<KEY>::const_access(data, byte), std::max(nenc_size, 0));
             else
-                for(size_t i = 0; i < nenc_size; ++i)
+                for(auto i = 0; i < nenc_size; ++i)
                     dest[i] = byte_iterator<KEY>::const_access(data, byte+i);
 
             // copy pointer in
