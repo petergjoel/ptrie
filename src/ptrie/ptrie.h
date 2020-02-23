@@ -104,7 +104,6 @@ namespace ptrie {
         static constexpr auto WIDTH = BSIZE*BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);
-        static_assert(FILTER == 0x0F);
         struct fwdnode_t;
         struct node_t;
 
@@ -203,12 +202,12 @@ namespace ptrie {
 
         void erase(node_t* node, size_t bucketid, int on_heap, const KEY* data, size_t byte);
         // helper-functions for erase
-        bool merge_down(node_t* node, int on_heap, const KEY* data, size_t byte);
-        bool merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte);
+        void merge_down(node_t* node, int on_heap, const KEY* data, size_t byte);
+        void merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte);
         bool merge_nodes(node_t* node, node_t* other, uchar path);
-        bool merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte);
-        bool readd_sizes(node_t* node, int on_heap, const KEY* data, size_t byte);
-        bool readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte);
+        void merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte);
+        void readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte);
+        void readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte);
 
         void inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> sizes);
         
@@ -1144,7 +1143,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool 
+    void 
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
@@ -1184,7 +1183,7 @@ namespace ptrie {
 
                 if(other == nullptr)
                 {
-                    return true;
+                    return;
                 }
                 else if(other->_type != 255)
                 {
@@ -1194,11 +1193,11 @@ namespace ptrie {
                 else if(other != parent)
                 {
                     assert(other->_type == 255);
-                    return true;
+                    return;
                 }
 
             } else {
-                return true;
+                return;
             }
         } while(true);        
     }
@@ -1262,57 +1261,38 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(node_t* node, int on_heap, const KEY* data, size_t byte)
+    void
+    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
     {
         assert(node);
-        const auto parent = node->_parent;
-        assert(parent);
-        assert(parent->_parent == &_root);
         assert(byte > 0);
         /*
          * we are re-adding one of the size-bytes. I.e. we are soon at the root
          */
-        node->_path = parent->_path;
-        assert(node->_path < WIDTH);
-        node->_parent = parent->_parent;
-        parent->_parent->_children[node->_path] = node;
-        node->_type = BSIZE;
-        delete parent;
-
-        if((byte % BDIV) == 0)
+        assert(node->_count > 0);
+        uint16_t sizes[256];
+        size_t totsize = 0;
+        for(size_t i = 0; i < node->_count; ++i)
         {
-            assert(node->_count > 0);
-            assert(&_root == parent->_parent);
-            uint16_t sizes[256];
-            size_t totsize = 0;
-            for(size_t i = 0; i < node->_count; ++i)
-            {
-                assert(false);
-                uint16_t t = (byte / BDIV) + on_heap;
-                uchar* tc = (uchar*)&t;
-                uchar* fc = (uchar*)&node->_data->first(node->_count, i);
-                tc[0] = fc[1];
-                sizes[i] = t;
-                totsize += bytes(sizes[i]);
-            }
-            auto inject = parent->get_byte();
-            inject_byte(node, inject, totsize, [&sizes](size_t i )
-            {
-                return sizes[i];
-            });
-            on_heap += 1;
-            node->_totsize = totsize;
+            uint16_t t = (byte / BDIV) + (on_heap-1);
+            uchar* tc = (uchar*)&t;
+            uchar* fc = (uchar*)&node->_data->first(node->_count, i);
+            tc[0] = fc[1];
+            sizes[i] = t;
+            totsize += bytes(sizes[i]);
         }
-        return merge_down(node, on_heap, data, byte - 1);
+        auto inject = parent->get_byte();
+        inject_byte(node, inject, totsize, [&sizes](size_t i )
+        {
+            return sizes[i];
+        });
+        node->_totsize = totsize;
     }
 
     template<PTRIETPL>
-    bool 
+    void 
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
-        if(byte <= BDIV)
-            return true;//readd_sizes(node, on_heap, data, byte);
         /*
          * We are removing a parent, so we need to re-add the byte from the path
          * here.
@@ -1328,35 +1308,42 @@ namespace ptrie {
 
         if((byte % BDIV) == 0)
         {
-            // first copy in path to firsts.
             on_heap += 1;
-
-            size_t nbucketsize = 0;
-            if(on_heap >= HEAPBOUND)
+            if(byte <= BDIV)
             {
-                nbucketsize = node->_count * sizeof(size_t);
+                readd_sizes(node, parent, on_heap, data, byte);
             }
-            else//if(on_heap < HEAPBOUND)
+            else
             {
-                assert(on_heap >= 0);
-                nbucketsize = on_heap * node->_count;
-            }
-            
-            uchar inject = parent->get_byte();
-            inject_byte(node, inject, nbucketsize, [on_heap](size_t)
-            {
-                return on_heap;
-            });
+                // first copy in path to firsts.
 
-            node->_totsize = nbucketsize;
+                size_t nbucketsize = 0;
+                if(on_heap >= HEAPBOUND)
+                {
+                    nbucketsize = node->_count * sizeof(size_t);
+                }
+                else//if(on_heap < HEAPBOUND)
+                {
+                    assert(on_heap >= 0);
+                    nbucketsize = on_heap * node->_count;
+                }
+
+                uchar inject = parent->get_byte();
+                inject_byte(node, inject, nbucketsize, [on_heap](size_t)
+                {
+                    return on_heap;
+                });
+
+                node->_totsize = nbucketsize;
+            }
         }
         delete parent;
 
-        return merge_down(node, on_heap, data, byte - 1);
+        merge_down(node, on_heap, data, byte - 1);
     }
     
     template<PTRIETPL>
-    bool
+    void
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
 #ifndef NDEBUG
@@ -1385,7 +1372,7 @@ namespace ptrie {
          */
         assert(node->_type > 0);
         assert(node->_type <= BSIZE);
-        if(node->_count > SPLITBOUND / 3) return true;
+        if(node->_count > SPLITBOUND / 3) return;
         uchar path = node->_path;
         base_t* child;
         auto parent = node->_parent;
@@ -1420,13 +1407,12 @@ namespace ptrie {
                     node->_parent->_children[i] = node->_parent;
                 }
                 delete node;
-                return false;
             }
             else if(other->_count <= SPLITBOUND / 3)
             {
-                return merge_down(other, on_heap, data, byte);
+                merge_down(other, on_heap, data, byte);
             }
-            return false;
+            return;
         }
         else
         {
@@ -1444,7 +1430,8 @@ namespace ptrie {
                         child->_path &= ~_masks[node->_type - 1];
                         assert(child->_path < WIDTH);
                         delete node;
-                        return merge_down((node_t*)child, on_heap, data, byte);
+                        merge_down((node_t*)child, on_heap, data, byte);
+                        return;
                     }
                     else
                     {
@@ -1452,13 +1439,13 @@ namespace ptrie {
                             if(c == node)
                                 c = parent;
                         delete node;
-                        return false;
+                        return;
                     }
                 }
                 else
                 {
                     if(!merge_nodes(node, other, path))
-                        return false;
+                        return;
                 }
             } 
             else if(node->_count == 0) // && childe->_type == 255
@@ -1467,7 +1454,7 @@ namespace ptrie {
                     if(c == node)
                         c = parent;
                 delete node;
-                return false;
+                return;
             }
             uchar from = node->_path & ~_masks[node->_type - 1];
             uchar to = from;
@@ -1477,13 +1464,13 @@ namespace ptrie {
 
             if(child->_type == 255)
             {
-                if(child != node->_parent) return false;
+                if(child != node->_parent) return;
                 for(size_t i = from; i <= to; ++i)
                 {
                     if( parent->_children[i] != child &&
                         parent->_children[i] != node)
                     {
-                        return  true;
+                        return;
                     }
                 }
             }
@@ -1498,37 +1485,36 @@ namespace ptrie {
                    parent->_children[i] == node);
                 parent->_children[i] = node;
             }
-            return merge_down(node, on_heap, data, byte);
+            merge_down(node, on_heap, data, byte);
         }
     }
     
     template<PTRIETPL>
-    bool
+    void
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
-        if(node->_count > SPLITBOUND/3) return true;
+        if(node->_count > SPLITBOUND/3) return;
 
         if(node->_type == 0)
         {
             if(node->_count == 0)
             {
-                return merge_empty(node, on_heap, data, byte);
+                merge_empty(node, on_heap, data, byte);
             }
             else if(node->_parent != &_root)
             {
                 // we need to re-add path to items here.
-                return readd_byte(node, on_heap, data, byte);
+                readd_byte(node, on_heap, data, byte);
             }
             if(node->_parent != &_root)
             {
                 assert(node->_count > 0);
-                return merge_down(node, on_heap, data, byte);
+                merge_down(node, on_heap, data, byte);
             }
-            return true;
         }
         else
         {
-            return merge_regular(node, on_heap, data, byte);
+            merge_regular(node, on_heap, data, byte);
         }
     }
 
@@ -1646,7 +1632,7 @@ namespace ptrie {
                     }
                     else if(n->_children[i]->_type <= BSIZE)
                     {
-                        assert(((node_t*)n->_children[i])->_count != 0)
+                        assert(((node_t*)n->_children[i])->_count != 0);
                     }
                     assert(n->_children[i] == n ||
                            n->_children[n->_children[i]->_path] == n->_children[i]);
