@@ -103,7 +103,8 @@ namespace ptrie {
         static constexpr auto BSIZE = 4;
         static constexpr auto WIDTH = BSIZE*BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
-        static constexpr auto FILTER = 0x0F;
+        static constexpr auto FILTER = 0xFF >> (8-BSIZE);
+        static_assert(FILTER == 0x0F);
         struct fwdnode_t;
         struct node_t;
 
@@ -318,7 +319,7 @@ namespace ptrie {
             uchar nb;
             if (byte >= 2) nb = byte_iterator<KEY>::const_access(data, byte - 2);
             else nb = sc[1 - byte];
-            nb = (nb >> (((p_byte+1)%2)*BSIZE)) & 0x0F;
+            nb = (nb >> (((p_byte+1)%BDIV)*BSIZE)) & FILTER;
             next = t_pos->_children[nb];
 
             assert(next != nullptr);
@@ -760,7 +761,7 @@ namespace ptrie {
         node->_count = lcnt;
         node->_totsize = lsize;
 
-        if(byte >= BDIV*2)
+        if(byte >= 2)
         {
             assert(hnode._totsize == bytes(bsize) * hnode._count);
             assert(node->_totsize == bytes(bsize) * node->_count);
@@ -890,7 +891,7 @@ namespace ptrie {
             }
             return ret;
         }
-        const auto byte = p_byte / 2;
+        const auto byte = p_byte / BDIV;
         if(base == (base_t*)fwd)
         {
             node = new node_t;
@@ -904,7 +905,7 @@ namespace ptrie {
 
             uchar* sc = (uchar*) & size;
             uchar b = (byte < 2 ? sc[1 - byte] : byte_iterator<KEY>::const_access(data, byte-2));
-            b = (b >> ((p_byte+1) % 2)*BSIZE) & 0x0F;
+            b = (b >> (((BDIV - 1) - p_byte) % BDIV)*BSIZE) & FILTER;
 
             uchar min = b;
             uchar max = b;
@@ -1159,7 +1160,7 @@ namespace ptrie {
                 // we can remove fwd and go back one level
                 parent->_parent->_children[parent->_path] = parent->_parent;
                 --byte;
-                if((byte % 2) == 0)
+                if((byte % BDIV) == 0)
                     ++on_heap;
                 fwdnode_t* next = parent->_parent;
                 delete parent;
@@ -1279,7 +1280,7 @@ namespace ptrie {
         node->_type = BSIZE;
         delete parent;
 
-        if((byte % 2) == 0)
+        if((byte % BDIV) == 0)
         {
             assert(node->_count > 0);
             assert(&_root == parent->_parent);
@@ -1288,7 +1289,7 @@ namespace ptrie {
             for(size_t i = 0; i < node->_count; ++i)
             {
                 assert(false);
-                uint16_t t = (byte / 2) + on_heap;
+                uint16_t t = (byte / BDIV) + on_heap;
                 uchar* tc = (uchar*)&t;
                 uchar* fc = (uchar*)&node->_data->first(node->_count, i);
                 tc[0] = fc[1];
@@ -1310,7 +1311,7 @@ namespace ptrie {
     bool 
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
-        if(byte <= 2)
+        if(byte <= BDIV)
             return true;//readd_sizes(node, on_heap, data, byte);
         /*
          * We are removing a parent, so we need to re-add the byte from the path
@@ -1325,7 +1326,7 @@ namespace ptrie {
         node->_type = BSIZE;
         parent->_parent->_children[node->_path] = node;
 
-        if((byte % 2) == 0)
+        if((byte % BDIV) == 0)
         {
             // first copy in path to firsts.
             on_heap += 1;
@@ -1359,7 +1360,7 @@ namespace ptrie {
     set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
 #ifndef NDEBUG
-            {
+        {
             std::stack<fwdnode_t*> waiting;
             waiting.push(&_root);
             while(!waiting.empty())
@@ -1377,7 +1378,7 @@ namespace ptrie {
                            n->_children[n->_children[i]->_path] == n->_children[i]);
                 }
             }
-            }
+        }
 #endif
         /*
          * We merge a regular node
@@ -1540,7 +1541,8 @@ namespace ptrie {
         uint16_t size = 0;
         uint16_t before = 0;
         auto parent = node->_parent;
-        if (parent->dist_to(&_root) < 2)
+        auto dist = parent->dist_to(&_root);
+        if (dist < BDIV)
         {
             for(size_t i = 0; i < bindex; ++i)
             {
@@ -1548,7 +1550,7 @@ namespace ptrie {
             }
             size = node->_data->first(node->_count, bindex);
         }
-        else if(parent->dist_to(&_root) < 4) {
+        else if(dist < 2*BDIV) {
             for(size_t i = 0; i <= bindex; ++i)
             {
                 uint16_t t = on_heap+1;
@@ -1644,10 +1646,7 @@ namespace ptrie {
                     }
                     else if(n->_children[i]->_type <= BSIZE)
                     {
-                        if(((node_t*)n->_children[i])->_count == 0)
-                        {
-                            merge_down(node, on_heap, data, byte);
-                        }
+                        assert(((node_t*)n->_children[i])->_count != 0)
                     }
                     assert(n->_children[i] == n ||
                            n->_children[n->_children[i]->_path] == n->_children[i]);
@@ -1670,19 +1669,19 @@ namespace ptrie {
         uint p_byte = 0;
 
         b_index = 0;
-        bool res = this->best_match(data, size, &fwd, &base, p_byte, b_index);
+        bool res = best_match(data, size, &fwd, &base, p_byte, b_index);
         if(!res || (size_t)fwd == (size_t)base)
         {
-            assert(!this->exists(data, length).first);
+            assert(!exists(data, length).first);
             return false;
         }
         else
         {
             int onheap = size;
-            onheap -= p_byte/2;
+            onheap -= p_byte/BDIV;
 
             erase((node_t *) base, b_index, onheap, data, p_byte);
-            assert(!this->exists(data, length).first);
+            assert(!exists(data, length).first);
 
             return true;
         }
