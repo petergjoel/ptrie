@@ -100,7 +100,7 @@ namespace ptrie {
         
         size = 0;
         offset = 0;
-        ps = path.size()/2;
+        ps = path.size()/pt::BDIV;
         if (ps <= 1) {
             size = node->_data->first(0, bindex);
             if (ps == 1) {

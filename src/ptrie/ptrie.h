@@ -101,7 +101,7 @@ namespace ptrie {
     class set {
     protected:
         static constexpr auto BSIZE = 8;
-        static constexpr auto WIDTH = BSIZE*BSIZE;
+        static constexpr auto WIDTH = 1 << BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);
         struct fwdnode_t;
@@ -314,11 +314,12 @@ namespace ptrie {
             *tree_pos = t_pos;
 
             base_t* next;
-            const auto byte = p_byte / 2;
+            const auto byte = p_byte / BDIV;
             uchar nb;
             if (byte >= 2) nb = byte_iterator<KEY>::const_access(data, byte - 2);
             else nb = sc[1 - byte];
-            nb = (nb >> (((p_byte+1)%BDIV)*BSIZE)) & FILTER;
+            if constexpr (BSIZE != 8)
+                nb = (nb >> (((p_byte+1)%BDIV)*BSIZE)) & FILTER;
             next = t_pos->_children[nb];
 
             assert(next != nullptr);
@@ -461,9 +462,10 @@ namespace ptrie {
         // run through tree as long as there are branches covering some of 
         // the encoding
         *node = fast_forward(data, length, tree_pos, p_byte);
-        if((size_t)*node != (size_t)*tree_pos) {
-            return bucket_search(data, length, (node_t*)*node, b_index, p_byte/2);
-        } else
+        if((base_t*)*node != (base_t*)*tree_pos) {
+            return bucket_search(data, length, (node_t*)*node, b_index, p_byte/BDIV);
+        } 
+        else
         {
             return false;
         }
@@ -473,7 +475,7 @@ namespace ptrie {
     template<PTRIETPL>
     void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, size_t bsize, size_t p_byte) 
     {
-        if(bsize+1 == p_byte/BDIV)
+        if(bsize == 0)
         {
             assert(node->_count <= 256);
             return;
@@ -505,7 +507,11 @@ namespace ptrie {
         int lsize = 0;
         int hsize = 0;
         bucket_t* bucket = node->_data;
-        const auto to_cut = ((p_byte+1) % BDIV) == 0 ? 1 : 0;
+        int to_cut;
+        if constexpr (BSIZE != 8)
+            to_cut = ((p_byte+1) % BDIV) == 0 ? 1 : 0;
+        else
+            to_cut = 1;
 
         // get sizes
         uint16_t lengths[SPLITBOUND];
@@ -515,7 +521,7 @@ namespace ptrie {
             if (p_byte < BDIV*2) {
                 uchar* f = (uchar*)&(bucket->first(bucketsize, i));
                 uchar* d = (uchar*)&(lengths[i]);
-                if (p_byte > 1) {
+                if (p_byte >= BDIV) {
                     lengths[i] += 1;
                     d[0] = f[1];
                     lengths[i] -= 1;
@@ -525,7 +531,9 @@ namespace ptrie {
                 }
             }
             uchar b = ((uchar*)&bucket->first(bucketsize, i))[1-to_cut];
-            b = (b >> ((p_byte % BDIV)*BSIZE)) & _masks[0];
+            if constexpr (BSIZE != 8)
+                b = (b >> ((p_byte % BDIV)*BSIZE));
+            b &= _masks[0];
             if (b == 0) {
                 ++lcnt;
                 if (lengths[i] < (HEAPBOUND + to_cut)) {
