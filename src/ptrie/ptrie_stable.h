@@ -30,17 +30,19 @@
 
 namespace ptrie {
 
-    #define SPTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I
+    #define SPTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, uint8_t BSIZE, size_t ALLOCSIZE, typename T, typename I
+    #define SPTRIETPLA KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I
     template<
     typename KEY = unsigned char,
     uint16_t HEAPBOUND = 128,
     uint16_t SPLITBOUND = 128,
+    uint8_t BSIZE = 4,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t
     >
-    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true> {
-        using pt = set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>;
+    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
+        using pt = set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
     public:
         set_stable() : pt()
         {
@@ -58,13 +60,13 @@ namespace ptrie {
         std::vector<KEY> unpack(I index) const;
         void unpack(I index, std::vector<KEY>& destination) const;
     protected:
-        typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
+        typename set<SPTRIETPLA, true>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
         void write_data(KEY* destination, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
   };
 
     template<SPTRIETPL>
-    typename set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, true>::node_t* 
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::
+    typename set<SPTRIETPLA, true>::node_t* 
+    set_stable<SPTRIETPLA>::
     find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
     {
         typename pt::node_t* node = nullptr;
@@ -108,8 +110,8 @@ namespace ptrie {
                 uchar* bs = (uchar*) & size;
                 for(auto i = 0; i < pt::BDIV; ++i)
                 {
-                    if constexpr (pt::BSIZE < 8)
-                        bs[1] <<= pt::BSIZE;
+                    if constexpr (BSIZE < 8)
+                        bs[1] <<= BSIZE;
                     bs[1] |= path.top();
                     path.pop();
                 }
@@ -130,7 +132,7 @@ namespace ptrie {
         } else {
             for(auto i = 0; i < pt::BDIV*2; ++i)
             {
-                size <<= pt::BSIZE;
+                size <<= BSIZE;
                 size |= path.top();
                 path.pop();
             }
@@ -141,7 +143,7 @@ namespace ptrie {
     
     template<SPTRIETPL>
     void
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::write_data(KEY* dest, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
+    set_stable<SPTRIETPLA>::write_data(KEY* dest, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
     {
         if (size > ps) {
             uchar* src;
@@ -165,8 +167,8 @@ namespace ptrie {
             uchar b = 0;
             for(auto i = 0; i < pt::BDIV; ++i)
             {
-                if constexpr (pt::BSIZE < 8)
-                    b <<= pt::BSIZE;
+                if constexpr (BSIZE < 8)
+                    b <<= BSIZE;
                 b |= path.top();
                 path.pop();
             }
@@ -188,7 +190,7 @@ namespace ptrie {
   
     template<SPTRIETPL>
     size_t
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, KEY* dest) const {
+    set_stable<SPTRIETPLA>::unpack(I index, KEY* dest) const {
         size_t bindex, ps, offset;
         uint16_t size;
         std::stack<uchar> path;
@@ -199,7 +201,7 @@ namespace ptrie {
     
     template<SPTRIETPL>
     std::vector<KEY>
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index) const {
+    set_stable<SPTRIETPLA>::unpack(I index) const {
         size_t bindex, ps, offset;
         uint16_t size;
         std::stack<uchar> path;
@@ -211,7 +213,7 @@ namespace ptrie {
 
     template<SPTRIETPL>
     void
-    set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>::unpack(I index, std::vector<KEY>& dest) const {
+    set_stable<SPTRIETPLA>::unpack(I index, std::vector<KEY>& dest) const {
         size_t bindex, ps, offset;
         uint16_t size;
         std::stack<uchar> path;

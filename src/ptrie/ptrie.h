@@ -87,12 +87,14 @@ namespace ptrie {
         // add read_blob, write_blob
     };
 
-#define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, size_t ALLOCSIZE, typename T, typename I, bool HAS_ENTRIES
+#define PTRIETPL typename KEY, uint16_t HEAPBOUND, uint16_t SPLITBOUND, uint8_t BSIZE, size_t ALLOCSIZE, typename T, typename I, bool HAS_ENTRIES
+#define PTRIETLPA KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, HAS_ENTRIES
     
     template<
     typename KEY = uchar,
     uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 129,
+    uint8_t BSIZE = 4,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t,
@@ -100,7 +102,8 @@ namespace ptrie {
     >
     class set {
     protected:
-        static constexpr auto BSIZE = 2;
+        static_assert(BSIZE == 2 || BSIZE == 4 || BSIZE == 8);
+
         static constexpr auto WIDTH = 1 << BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);
@@ -248,7 +251,7 @@ namespace ptrie {
     };
 
     template<PTRIETPL>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::~set() {
+    set<PTRIETLPA>::~set() {
         std::stack<fwdnode_t*> stack;
         stack.push(&_root);
         while(!stack.empty())
@@ -281,7 +284,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::init()
+    void set<PTRIETLPA>::init()
     {
         _entries = nullptr;
         if constexpr (HAS_ENTRIES)
@@ -298,14 +301,14 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::set()
+    set<PTRIETLPA>::set()
     {
         init();
     }
 
     template<PTRIETPL>
     base_t*
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::fast_forward(const KEY* data, size_t s, fwdnode_t** tree_pos, uint& p_byte) const {
+    set<PTRIETLPA>::fast_forward(const KEY* data, size_t s, fwdnode_t** tree_pos, uint& p_byte) const {
         fwdnode_t* t_pos = *tree_pos;
 
         uchar* sc = (uchar*) & s;
@@ -338,7 +341,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::bucket_search(const KEY* target, size_t size, node_t* node, uint& b_index, uint byte) const {
+    bool set<PTRIETLPA>::bucket_search(const KEY* target, size_t size, node_t* node, uint& b_index, uint byte) const {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
@@ -457,7 +460,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
+    bool set<PTRIETLPA>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
             uint& p_byte, uint& b_index) const {
         // run through tree as long as there are branches covering some of 
         // the encoding
@@ -473,7 +476,7 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
+    void set<PTRIETLPA>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
     {
         if(bsize == -1)
         {
@@ -693,7 +696,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) {
+    void set<PTRIETLPA>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) {
 
         assert(bsize >= -1);
         assert(bsize < std::numeric_limits<int32_t>::max());
@@ -858,7 +861,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::exists(const KEY* data, size_t length) const {
+    set<PTRIETLPA>::exists(const KEY* data, size_t length) const {
         assert(length <= 65536);
 
         uint b_index = 0;
@@ -881,7 +884,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::insert(const KEY* data, size_t length) {
+    set<PTRIETLPA>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
         const auto size = byte_iterator<KEY>::element_size() * length;
         uint b_index = 0;
@@ -1083,7 +1086,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
+    set<PTRIETLPA>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
@@ -1155,7 +1158,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void 
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
          * If a node is emtpy, we can remove all the way down til we meet some 
@@ -1215,7 +1218,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     bool 
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_nodes(node_t* node, node_t* other, uchar path)
+    set<PTRIETLPA>::merge_nodes(node_t* node, node_t* other, uchar path)
     {
         /*
          * Migrate data from "other"-node to "node"
@@ -1273,7 +1276,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
     {
         assert(node);
         assert(byte > 0);
@@ -1302,7 +1305,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void 
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
          * We are removing a parent, so we need to re-add the byte from the path
@@ -1355,7 +1358,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
 #ifndef NDEBUG
         {
@@ -1502,7 +1505,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         if(node->_count > SPLITBOUND/3) return;
 
@@ -1531,7 +1534,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(node_t* node, size_t bindex, int on_heap, const KEY* data, size_t byte)
+    set<PTRIETLPA>::erase(node_t* node, size_t bindex, int on_heap, const KEY* data, size_t byte)
     {
         
         // first find size and amount before
@@ -1655,7 +1658,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I, HAS_ENTRIES>::erase(const KEY *data, size_t length)
+    set<PTRIETLPA>::erase(const KEY *data, size_t length)
     {
         const auto size = length*byte_iterator<KEY>::element_size();
         assert(size <= 65536);
