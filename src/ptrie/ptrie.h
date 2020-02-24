@@ -100,7 +100,7 @@ namespace ptrie {
     >
     class set {
     protected:
-        static constexpr auto BSIZE = 4;
+        static constexpr auto BSIZE = 2;
         static constexpr auto WIDTH = 1 << BSIZE;
         static constexpr auto BDIV = 8/BSIZE;
         static constexpr auto FILTER = 0xFF >> (8-BSIZE);
@@ -319,13 +319,13 @@ namespace ptrie {
             if (byte >= 2) nb = byte_iterator<KEY>::const_access(data, byte - 2);
             else nb = sc[1 - byte];
             if constexpr (BSIZE != 8)
-                nb = (nb >> (((p_byte+1)%BDIV)*BSIZE)) & FILTER;
+                nb = (nb >> (((BDIV - 1) - (p_byte % BDIV))*BSIZE)) & FILTER;
             next = t_pos->_children[nb];
 
             assert(next != nullptr);
             if(next == t_pos)
             {
-              return t_pos;
+                return t_pos;
             } 
             else if (next->_type != 255) {
                 return (node_t*) next;
@@ -509,7 +509,7 @@ namespace ptrie {
         bucket_t* bucket = node->_data;
         int to_cut;
         if constexpr (BSIZE != 8)
-            to_cut = ((p_byte+1) % BDIV) == 0 ? 1 : 0;
+            to_cut = ((p_byte + 1) % BDIV)== 0 ? 1 : 0;
         else
             to_cut = 1;
 
@@ -532,10 +532,11 @@ namespace ptrie {
             }
             uchar b = ((uchar*)&bucket->first(bucketsize, i))[1-to_cut];
             if constexpr (BSIZE != 8)
-                b = (b >> ((p_byte % BDIV)*BSIZE));
+                b = (b >> (((BDIV-1)-((p_byte + 1) % BDIV))*BSIZE));
             b &= _masks[0];
             if (b == 0) {
                 ++lcnt;
+                assert(hcnt == 0);
                 if (lengths[i] < (HEAPBOUND + to_cut)) {
                     if (lengths[i] > to_cut) {
                         lsize += lengths[i] - to_cut;
@@ -732,8 +733,8 @@ namespace ptrie {
 
         for (size_t i = 0; i < bucketsize; i++) {
 
-            uchar* f = (uchar*) & node->_data->first(bucketsize, i);
-            uchar fb = (f[1] >> (((BDIV-1)-p_byte) % BDIV)*BSIZE) & FILTER; 
+            auto f = (uchar*)&node->_data->first(bucketsize, i);
+            uchar fb = (f[1] >> (((BDIV - 1) - (p_byte % BDIV)) * BSIZE)); 
             if ((fb & _masks[r_pos]) > 0) {
 #ifndef NDEBUG
                 high = true;
@@ -913,7 +914,8 @@ namespace ptrie {
 
             uchar* sc = (uchar*) & size;
             uchar b = (byte < 2 ? sc[1 - byte] : byte_iterator<KEY>::const_access(data, byte-2));
-            b = (b >> (((BDIV - 1) - p_byte) % BDIV)*BSIZE) & FILTER;
+            if constexpr (BSIZE != 8)
+                b = (b >> (((BDIV - 1) - (p_byte % BDIV))*BSIZE)) & FILTER;
 
             uchar min = b;
             uchar max = b;
