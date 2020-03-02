@@ -303,7 +303,7 @@ namespace ptrie
         uint16_t _nbytes;
                
         // masks for single-bit access
-     } __attribute__((packed));
+     };
 }
 #endif	/* BINARYWRAPPER_H */
 
