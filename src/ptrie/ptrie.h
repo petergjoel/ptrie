@@ -94,7 +94,7 @@ namespace ptrie {
     typename KEY = uchar,
     uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 129,
-    uint8_t BSIZE = 4,
+    uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t,

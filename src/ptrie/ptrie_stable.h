@@ -34,9 +34,9 @@ namespace ptrie {
     #define SPTRIETPLA KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I
     template<
     typename KEY = unsigned char,
-    uint16_t HEAPBOUND = 128,
+    uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 128,
-    uint8_t BSIZE = 4,
+    uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename T = void,
     typename I = size_t

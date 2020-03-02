@@ -31,9 +31,9 @@ namespace ptrie {
     template<
     typename KEY,
     typename T,
-    uint16_t HEAPBOUND = 128,
+    uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 128,
-    uint8_t BSIZE = 4,
+    uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename I = size_t>
     class map :
