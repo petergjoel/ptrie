@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright Peter G. Jensen <root@petergjoel.dk>
  *  
  * This program is free software: you can redistribute it and/or modify
@@ -403,6 +403,7 @@ namespace ptrie {
             for (; b_index < node->_count; ++b_index) {
 
                 size_t b = 0;
+                uchar ob;
 
                 if (bucket->first(node->_count, b_index) > first) break;
                 // first is 2 bytes, which is size of counter, the first part of the tree
@@ -410,14 +411,15 @@ namespace ptrie {
 
                 if (encsize < HEAPBOUND) {
                     for (; b < encsize; ++b) {
-                        if (data[offset + b] != byte_iterator<KEY>::const_access(target, b+byte)) break;
+                        ob = byte_iterator<KEY>::const_access(target, b+byte);
+                        if (data[offset + b] != ob) break;
                     }
                     if (b == encsize) {
                         found = true;
                         break;
                     } else {
-                        assert(byte_iterator<KEY>::const_access(target, b+byte) != data[offset + b]);
-                        if (byte_iterator<KEY>::const_access(target, b+byte) < data[offset + b]) {
+                        assert(ob != data[offset + b]);
+                        if (ob < data[offset + b]) {
                             found = false;
                             break;
                         }
@@ -443,11 +445,21 @@ namespace ptrie {
                         // comp
                         for(; b < encsize; ++b)
                         {
-                            if(ptr[b] != byte_iterator<KEY>::const_access(target, b+byte))
-                            {
+                            ob = byte_iterator<KEY>::const_access(target, b+byte);
+                            if(ptr[b] != ob)
+                                break;
+                        }
+                        if (b == encsize)
+                        {
+                            found = true;
+                            break;
+                        } else {
+                            assert(ob != ptr[b]);
+                            if (ob < ptr[b]) {
                                 found = false;
                                 break;
                             }
+                            // else continue search                            
                         }
                     }
                 }
@@ -854,8 +866,8 @@ namespace ptrie {
             }
 
             delete[] (uchar*)old;
-            assert(node->_count < SPLITBOUND || (std::max(bsize,0)+1 == p_byte/BDIV));
-            assert(h_node->_count < SPLITBOUND || (std::max(bsize,0)+1 == p_byte/BDIV));
+            assert(node->_count < SPLITBOUND || (std::max(bsize,0)+1 == (int64_t)p_byte/BDIV));
+            assert(h_node->_count < SPLITBOUND || (std::max(bsize,0)+1 == (int64_t)p_byte/BDIV));
         }
     }
 
