@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(InsertByte)
 
 BOOST_AUTO_TEST_CASE(InsertByteSplit)
 {
-    set<unsigned char, 128, 4> set;
+    set<unsigned char, 128, 6> set;
     try_insert(set,
                [](size_t i)
                {
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand2)
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set<unsigned char,sizeof(size_t)+1, 4> set;
+        set<unsigned char,sizeof(size_t)+1, 6> set;
         try_insert(set,
                   [seed](size_t i) {
                      return rand_data(seed + i, 16);

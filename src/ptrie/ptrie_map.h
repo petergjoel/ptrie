@@ -31,13 +31,14 @@ namespace ptrie {
     template<
     typename KEY,
     typename T,
-    uint16_t HEAPBOUND = 128,
+    uint16_t HEAPBOUND = 17,
     uint16_t SPLITBOUND = 128,
+    uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename I = size_t>
     class map :
-    public set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I> {
-        using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, ALLOCSIZE, T, I>;
+    public set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I> {
+        using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
     public:
         map() : pt() {};
         map(map&&) = default;
@@ -64,10 +65,11 @@ namespace ptrie {
     typename T,
     uint16_t HEAPBOUND,
     uint16_t SPLITBOUND,
+    uint8_t BSIZE,
     size_t ALLOCSIZE,
     typename I>
     T&
-    map<KEY, T, HEAPBOUND, SPLITBOUND, ALLOCSIZE, I>::get_data(I index) {
+    map<KEY, T, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent._data;
     }

@@ -39,7 +39,7 @@ private:
         std::atomic<size_t> _offset;
         size_t _count;
         T _data[C];
-    } __attribute__ ((aligned (64)));
+    };
     
     struct index_t
     {
