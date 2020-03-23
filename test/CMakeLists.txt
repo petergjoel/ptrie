@@ -13,7 +13,7 @@ add_executable (Map map.cpp)
 add_executable (StableSet stable_set.cpp)
 
 
-target_link_libraries(Set       boost_unit_test_framework ptrie)
-target_link_libraries(Delete    boost_unit_test_framework ptrie)
-target_link_libraries(StableSet boost_unit_test_framework ptrie)
-target_link_libraries(Map       boost_unit_test_framework ptrie)
+target_link_libraries(Set       ${Boost_LIBRARIES} ptrie)
+target_link_libraries(Delete    ${Boost_LIBRARIES} ptrie)
+target_link_libraries(StableSet ${Boost_LIBRARIES} ptrie)
+target_link_libraries(Map       ${Boost_LIBRARIES} ptrie)
