@@ -123,7 +123,7 @@ namespace ptrie {
     protected:
 
         typedef ptrie_el_t<T, node_t*> entry_t;
-        
+        using entrylist_t = linked_bucket_t<entry_t, ALLOCSIZE>;
         struct bucket_t {
 
             bucket_t() {
@@ -162,11 +162,15 @@ namespace ptrie {
             void cleanup(size_t depth, uint16_t remainder);
             constexpr uchar* data() const { return _data->data(_count); }
             constexpr uint16_t& first(size_t index) const { return _data->first(_count, index); }
+            constexpr uint16_t* first() const { return &_data->first(_count, 0); }
+            constexpr auto entries() const { return _data->entries(_count); }
+            constexpr void clone(const node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
         };
 
         struct fwdnode_t : public base_t {
             base_t* _children[WIDTH];
             fwdnode_t* _parent;
+            constexpr void clone(const fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
             size_t dist_to(fwdnode_t* other) const
             {
                 assert(this);
@@ -186,7 +190,7 @@ namespace ptrie {
             }
         };
 
-        std::shared_ptr<linked_bucket_t<entry_t, ALLOCSIZE>> _entries = nullptr;
+        std::shared_ptr<entrylist_t> _entries = nullptr;
 
         fwdnode_t _root;
     protected:
@@ -344,7 +348,7 @@ namespace ptrie {
         _entries = nullptr;
         if constexpr (HAS_ENTRIES)
         {
-            _entries = std::make_unique<linked_bucket_t<entry_t, ALLOCSIZE>>(1);
+            _entries = std::make_unique<entrylist_t>(1);
         }
 
         _root._parent = nullptr;
@@ -362,8 +366,111 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    set<PTRIETLPA>& set<PTRIETLPA>::operator=(const ptrie::set<PTRIETLPA> &other) {
+    set<PTRIETLPA>& set<PTRIETLPA>::operator=(const ptrie::set<PTRIETLPA> &other) 
+    {
+        _root.clone(other._root, _entries.get(), other._entries.get(), 0, 0);
         return *this;
+    }
+    
+    template<PTRIETPL>
+    constexpr void set<PTRIETLPA>::fwdnode_t::clone(const set<PTRIETLPA>::fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth)
+    {
+        _path = other._path;
+        _type = 255;
+
+        for(size_t i = 0; i < WIDTH; ++i)
+        {
+            auto* child = other._children[i];
+            if(child == nullptr)
+            {
+                _children[i] = nullptr;
+                continue;
+            }
+            if(&other == child)
+            {
+                _children[i] = this;
+                continue;
+            }
+            if(i > 0 && child == other._children[i-1])
+            {
+                _children[i] = _children[i-1];
+                continue;
+            }
+            if(child->_type == 255)
+            {
+                auto nn = new fwdnode_t;
+                _children[i] = nn;
+                auto f = esize;
+                if(depth / BDIV < 2)
+                {
+                    // we add bits from the most significant to the least
+                    f |= (child->_path << ((16-BSIZE)-(BSIZE*depth)));
+                }
+                nn->clone(*static_cast<const fwdnode_t*>(child), entries, other_entries, f, depth+1);
+                nn->_parent = this;
+            }
+            else
+            {
+                auto nn = new node_t;
+                _children[i] = nn;
+                nn->clone(*static_cast<const node_t*>(child), entries, other_entries, esize, depth);
+                nn->_parent = this;
+            }
+        }
+    }
+
+    template<PTRIETPL>
+    constexpr void set<PTRIETLPA>::node_t::clone(const set<PTRIETLPA>::node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t encsize, size_t depth) {
+        const auto bdepth = depth / BDIV;
+        _path = other._path;
+        _type = other._type;
+        _count = other._count;
+        _totsize = other._totsize;
+        _data = (bucket_t*) new uchar[_totsize + bucket_t::overhead(_count)];
+        std::copy(other.first(), other.first() + _count, first());
+        if (bdepth >= 2 &&
+                (encsize < bdepth || // already fully encoded
+                encsize - bdepth < HEAPBOUND)) // residue is directly encoded
+        {
+            std::copy(other.data(), other.data() + other._totsize, data());
+        } else if (bdepth >= 2) {
+
+            // everything is allocated on heap
+            auto ptr = (uchar **) data();
+            auto optr = (uchar **) other.data();
+            for (size_t i = 0; i < _count; ++i) {
+                ptr[i] = new uchar[(encsize - bdepth)];
+                std::copy(optr[i], optr[i] + encsize, ptr[i]);
+            }
+        } else {
+            size_t offset = 0;
+            for (size_t i = 0; i < _count; ++i) {
+                auto lencsize = encsize;
+                auto f = first(i);
+                if (bdepth != 0) {
+                    // only keep most sig. bits
+                    lencsize &= ~0xFF00;
+                    //extract most sig. bits and shift to least sig. bits
+                    lencsize |= (f & 0xFF00) >> 8;
+                }
+                if ((lencsize - bdepth) >= HEAPBOUND) {
+                    auto ptr = (uchar **) (&(data()[offset]));
+                    auto optr = (uchar **) (&(other.data()[offset]));
+                    ptr[0] = new uchar[lencsize];
+                    std::copy(optr[0], optr[0] + lencsize, ptr[0]);
+                } else {
+                    std::copy(other.data() + offset, other.data() + lencsize, data() + offset);
+                }
+                offset += bytes(lencsize - bdepth);
+            }
+        }
+        if constexpr (HAS_ENTRIES) {
+            for (size_t i = 0; i < _count; ++i) {
+                auto eid = entries.next(0);
+                entries[i] = eid;
+                entries[eid] = other_entries[other->entries()[i]];
+            }
+        }
     }
 
     template<PTRIETPL>

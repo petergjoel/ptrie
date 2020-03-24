@@ -124,3 +124,19 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
     }
 }
 
+BOOST_AUTO_TEST_CASE(SimpleCopy)
+{
+    set<size_t> set;
+    for(size_t i = 0; i < 100000; ++i)
+    {
+        set.insert(i);
+    }
+    {
+        auto cpy = set;
+        size_t i = 0;
+        for(; i < 100000; ++i)
+            BOOST_REQUIRE(cpy.exists(i).first);
+        for(; i < 200000; ++i)
+            BOOST_REQUIRE(!cpy.exists(i).first);
+    }
+}
