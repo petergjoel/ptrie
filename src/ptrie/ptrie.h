@@ -255,6 +255,7 @@ namespace ptrie {
         bool         erase (std::pair<const KEY*, size_t> data)  { return erase(data.first, data.second); }
         bool         erase (const std::vector<KEY>& data)        { return erase(data.data(), data.size()); }
         
+        
         set(set&& other) { move(other); }
         
         set& operator=(set&& other) { move(other); return *this; }
@@ -264,6 +265,97 @@ namespace ptrie {
             *this = other;
         }
         set& operator=(const set& other);
+        
+        // not sure if we can inherit from std::iterator here, its ill-defined
+        // what e.g. a "distance".
+        class ordered_iterator {
+            friend class set;
+        private:
+            const base_t* _node;
+            int16_t _index;
+            const set* _source = nullptr;
+        protected:
+            ordered_iterator(const base_t* base, int16_t index, const set& source)
+            : _node(base), _index(index), _source(&source) {}
+            
+        public:
+            ordered_iterator() = default;
+            ordered_iterator(const ordered_iterator&) = default;
+            ordered_iterator(ordered_iterator&&) = default;
+            ordered_iterator& operator=(const ordered_iterator&) = default;
+            ordered_iterator& operator=(ordered_iterator&&) = default;
+            
+            bool operator==(const ordered_iterator& other) const { return _node == other._node && _index == other._index; }
+            bool operator!=(const ordered_iterator& other) const { return !(*this == other); }
+            
+            ordered_iterator& operator++()
+            {
+                if(_node->_type == 255)
+                {
+                    auto* fwd = static_cast<const fwdnode_t*>(_node);
+                    while(fwd->_children[_index] == fwd) 
+                        ++_index;
+                    if(_index == 256) // we have reached the end of this fwdnode
+                    {
+                        if(fwd->_parent == nullptr)
+                            return *this; // we have reached the end of structure
+                        int i = 255;
+                        while(fwd->_parent->_children[i] != fwd)
+                            --i; // find next element in parent (or end of parent)
+                        
+                        _node = fwd->_parent;
+                        _index = i+1;
+                        return ++(*this);
+                    }
+                    else
+                    {
+                        _node = fwd->_children[_index];
+                        _index = 0;
+                        if(_node->_type != 255)
+                            return *this;
+                        else
+                            return ++(*this);
+                    }
+                }
+                else
+                {
+                    ++_index;
+                    auto* node = static_cast<const node_t*>(_node);
+                    if(_index < node->_count)
+                        return *this;
+                    int i = 255;
+                    while(node->_parent->_children[i] != node)
+                        --i; // find next element in parent (or end of parent)
+                    _node = node->_parent;
+                    _index = i+1;
+                    return ++(*this);
+                }
+            }
+            
+            ordered_iterator& operator--()
+            {
+                
+            }
+            
+            I operator*() const
+            {
+                assert(_node->_type != 255);
+                auto* node = static_cast<node_t*>(_node);
+                assert(node->_count < _index);
+                return node->entries()[_index];
+            }
+
+            /*typename std::enable_if<HAS_ENTRIES && !std::is_same<void,T>,T&>::type operator*()
+            {
+                assert(_node->_type != 255);
+                auto* node = static_cast<node_t*>(_node);
+                assert(node->_count < _index);
+                return set->_entries[node->entries()[_index]];
+            }*/
+        };
+        
+        virtual ordered_iterator begin() const { return ++ordered_iterator(&_root, 0, *this); }
+        virtual ordered_iterator end()   const { return ordered_iterator(&_root, 256, *this); }
     };
 
     template<PTRIETPL>

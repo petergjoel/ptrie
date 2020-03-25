@@ -22,7 +22,7 @@
 #include "utils.h"
 
 using namespace ptrie;
-
+/*
 BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
@@ -139,4 +139,19 @@ BOOST_AUTO_TEST_CASE(SimpleCopy)
         for(; i < 200000; ++i)
             BOOST_REQUIRE(!cpy.exists(i).first);
     }
+}*/
+
+BOOST_AUTO_TEST_CASE(SimpleIterator)
+{
+    set<size_t> set;
+    for(size_t i = 0; i < 100000; ++i)
+    {
+        set.insert(i);
+    }
+    size_t cnt = 0;
+    for(auto b = set.begin(); b != set.end(); ++b)
+    {
+        ++cnt;
+    }
+    BOOST_REQUIRE(cnt == 100000);
 }
