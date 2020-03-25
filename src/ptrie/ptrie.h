@@ -235,6 +235,8 @@ namespace ptrie {
         static constexpr const uchar* _masks = &_all_masks[8-BSIZE];
 
         void move(set& other);
+        static void build_path(const node_t* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size);
+        static void write_data(KEY* dest, const node_t* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size);
         
     public:
         set();
@@ -268,90 +270,152 @@ namespace ptrie {
         
         // not sure if we can inherit from std::iterator here, its ill-defined
         // what e.g. a "distance".
+        // Also, this should be refactored s.t. there is base-ptrie-class with
+        // private inheritance
         class ordered_iterator {
             friend class set;
-        private:
-            const base_t* _node;
-            int16_t _index;
-            const set* _source = nullptr;
         protected:
+            const base_t* _node = nullptr;
+            int16_t _index = 0;
+            const set* _source = nullptr;
+            template<int16_t INC, int16_t MAX>
+            bool move()
+            {
+                if(_node->_type == 255)
+                {
+                    auto* fwd = static_cast<const fwdnode_t*>(_node);
+                    while(fwd->_children[_index] == fwd) 
+                        _index += INC;
+                    if(_index == MAX+INC) // we have reached the end of this fwdnode
+                    {
+                        if(fwd->_parent == nullptr)
+                            return false; // we have reached the end of structure
+                        int i = MAX;
+                        while(fwd->_parent->_children[i] != fwd)
+                            i -= INC; // find next element in parent (or end of parent)
+                        
+                        _node = fwd->_parent;
+                        _index = i+INC;
+                        return true;
+                    }
+                    else
+                    {
+                        _node = fwd->_children[_index];
+                        _index = 255-MAX;
+                        if(_node->_type != 255)
+                        {
+                            if constexpr (MAX == 0) _index = static_cast<const node_t*>(_node)->_count-1;
+                            return false;
+                        }
+                        else
+                            return true;
+                    }
+                }
+                else
+                {
+                    _index += INC;
+                    auto* node = static_cast<const node_t*>(_node);
+                    if(MAX == 255 && _index < node->_count)
+                        return false;
+                    else if(MAX == 0 && _index >= 0)
+                        return false;
+                    int i = MAX;
+                    while(node->_parent->_children[i] != node)
+                        i -= INC; // find next element in parent (or end of parent)
+                    _node = node->_parent;
+                    _index = i+INC;
+                    return true;
+                }                
+            }
+        public:
             ordered_iterator(const base_t* base, int16_t index, const set& source)
             : _node(base), _index(index), _source(&source) {}
-            
-        public:
             ordered_iterator() = default;
             ordered_iterator(const ordered_iterator&) = default;
             ordered_iterator(ordered_iterator&&) = default;
             ordered_iterator& operator=(const ordered_iterator&) = default;
             ordered_iterator& operator=(ordered_iterator&&) = default;
             
-            bool operator==(const ordered_iterator& other) const { return _node == other._node && _index == other._index; }
+            bool operator==(const ordered_iterator& other) const {
+                if(_node->_type != 255)
+                    return _node == other._node && _index == other._index; 
+                auto* fwd = static_cast<const fwdnode_t*>(_node);
+                assert(fwd->_parent == nullptr);
+                if(_index <= 0 && other._index <= 0) return true; // begin;
+                else if(_index >= 255 && other._index >= 255) return true; // end
+                return false;
+            }
             bool operator!=(const ordered_iterator& other) const { return !(*this == other); }
             
             ordered_iterator& operator++()
             {
                 if(_node->_type == 255)
-                {
-                    auto* fwd = static_cast<const fwdnode_t*>(_node);
-                    while(fwd->_children[_index] == fwd) 
-                        ++_index;
-                    if(_index == 256) // we have reached the end of this fwdnode
-                    {
-                        if(fwd->_parent == nullptr)
-                            return *this; // we have reached the end of structure
-                        int i = 255;
-                        while(fwd->_parent->_children[i] != fwd)
-                            --i; // find next element in parent (or end of parent)
-                        
-                        _node = fwd->_parent;
-                        _index = i+1;
-                        return ++(*this);
-                    }
-                    else
-                    {
-                        _node = fwd->_children[_index];
-                        _index = 0;
-                        if(_node->_type != 255)
-                            return *this;
-                        else
-                            return ++(*this);
-                    }
-                }
-                else
-                {
-                    ++_index;
-                    auto* node = static_cast<const node_t*>(_node);
-                    if(_index < node->_count)
-                        return *this;
-                    int i = 255;
-                    while(node->_parent->_children[i] != node)
-                        --i; // find next element in parent (or end of parent)
-                    _node = node->_parent;
-                    _index = i+1;
-                    return ++(*this);
-                }
+                    _index = std::max<int16_t>(0, _index);
+                if(move<1,255>())
+                    ++(*this);
+                return *this;
+            }
+            
+            ordered_iterator operator++(int)
+            {
+                auto cpy = *this;
+                ++(*this);
+                return cpy;
             }
             
             ordered_iterator& operator--()
             {
-                
-            }
-            
-            I operator*() const
-            {
-                assert(_node->_type != 255);
-                auto* node = static_cast<node_t*>(_node);
-                assert(node->_count < _index);
-                return node->entries()[_index];
+                if(_node->_type == 255)
+                    _index = std::min<int16_t>(255, _index);
+                if(move<-1,0>())
+                    --(*this);
+                return *this;
             }
 
-            /*typename std::enable_if<HAS_ENTRIES && !std::is_same<void,T>,T&>::type operator*()
+            ordered_iterator operator--(int)
             {
-                assert(_node->_type != 255);
-                auto* node = static_cast<node_t*>(_node);
-                assert(node->_count < _index);
-                return set->_entries[node->entries()[_index]];
-            }*/
+                auto cpy = *this;
+                --(*this);
+                return cpy;
+            }
+            
+            I index() const {
+                return static_cast<const node_t*>(_node)->entries()[_index];
+            }
+            
+            size_t
+            unpack(KEY* dest) const {
+                size_t ps, offset;
+                uint16_t size;
+                std::stack<uchar> path;
+                auto node = static_cast<const node_t*>(_node);
+                build_path(node, path, _index, offset, ps, size);
+                write_data(dest, node, path, _index, offset, ps, size);
+                return size/byte_iterator<KEY>::element_size();
+            }
+
+            std::vector<KEY>
+            unpack() const {
+                size_t ps, offset;
+                uint16_t size;
+                std::stack<uchar> path;
+                auto node = static_cast<const node_t*>(_node);
+                build_path(node, path, _index, offset, ps, size);
+                std::vector<KEY> destination(size/byte_iterator<KEY>::element_size());
+                write_data(destination.data(), node, path, _index, offset, ps, size);        
+                return destination;   
+            }
+
+            void
+            unpack(std::vector<KEY>& dest) const {
+                size_t ps, offset;
+                uint16_t size;
+                std::stack<uchar> path;
+                auto node = static_cast<const node_t*>(_node);
+                build_path(node, path, _index, offset, ps, size);
+                dest.resize(size/byte_iterator<KEY>::element_size());
+                write_data(dest.data(), static_cast<node_t*>(_node), path, _index, offset, ps, size);        
+            }                
         };
         
         virtual ordered_iterator begin() const { return ++ordered_iterator(&_root, 0, *this); }
@@ -460,7 +524,7 @@ namespace ptrie {
     void set<PTRIETLPA>::move(set& other)
     {
         _entries = std::move(other._entries);
-        _root._parent = &_root;
+        _root._parent = nullptr;
         _root._type = 255;
         _root._path = 0;
         for(size_t i = 0; i < WIDTH; ++i)
@@ -1987,8 +2051,103 @@ namespace ptrie {
             return true;
         }
     }
+    
+    template<PTRIETPL>
+    void
+    set<PTRIETLPA>::build_path(const node_t* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size)
+    {
+        auto par = node->_parent;
+        while (par && par->_parent != nullptr) {
+            path.push(par->_path);
+            par = par->_parent;
+        }
+        
+        size = 0;
+        offset = 0;
+        ps = path.size()/BDIV;
+        if (ps <= 1) {
+            size = node->_data->first(0, bindex);
+            if (ps == 1) {
+                size >>= 8;
+                uchar* bs = (uchar*) & size;
+                for(auto i = 0; i < BDIV; ++i)
+                {
+                    if constexpr (BSIZE < 8)
+                        bs[1] <<= BSIZE;
+                    bs[1] |= path.top();
+                    path.pop();
+                }
+            }
+            uint16_t o = size;
+            for (size_t i = 0; i < bindex; ++i) {
+
+                uint16_t f = node->_data->first(0, i);
+                uchar* fc = (uchar*) & f;
+                uchar* oc = (uchar*) & o;
+                if (ps != 0) {
+                    f >>= 8;
+                    fc[1] = oc[1];
+                    f -= 1;
+                }
+                offset += bytes(f);
+            }
+        } else {
+            for(auto i = 0; i < BDIV*2; ++i)
+            {
+                size <<= BSIZE;
+                size |= path.top();
+                path.pop();
+            }
+            offset = (bytes(size - ps) * bindex);
+        }        
+    }
+    
+    template<PTRIETPL>
+    void
+    set<PTRIETLPA>::write_data(KEY* dest, const node_t* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size)
+    {
+        if (size > ps) {
+            uchar* src;
+            if ((size - ps) >= HEAPBOUND) {
+                src = *((uchar**)&(node->_data->data(node->_count)[offset]));
+            } else {
+                src = &(node->_data->data(node->_count)[offset]);
+            }
+
+            if constexpr (byte_iterator<KEY>::continious())
+                memcpy(&byte_iterator<KEY>::access(dest, ps), src, (size - ps));
+            else
+                for(size_t i = 0; i < (size - ps); ++i)
+                    byte_iterator<KEY>::access(dest, ps + i) = src[i];
+        }
+
+        uint16_t first = node->_data->first(0, bindex);
+
+        size_t pos = 0;
+        while (path.size() >= BDIV) {
+            uchar b = 0;
+            for(auto i = 0; i < BDIV; ++i)
+            {
+                if constexpr (BSIZE < 8)
+                    b <<= BSIZE;
+                b |= path.top();
+                path.pop();
+            }
+            byte_iterator<KEY>::access(dest, pos) = b;
+            ++pos;
+        }
+
+
+        if (ps > 0) {
+            uchar* fc = (uchar*) & first;
+            if (ps > 1) {
+                byte_iterator<KEY>::access(dest, pos) = fc[1];
+                ++pos;
+            }
+            byte_iterator<KEY>::access(dest, pos) = fc[0];
+            ++pos;
+        }        
+    }
 }
-
-
 
 #endif /* PTRIE_H */

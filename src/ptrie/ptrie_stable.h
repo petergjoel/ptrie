@@ -58,19 +58,17 @@ namespace ptrie {
 
         size_t unpack(I index, KEY* destination) const;
         std::vector<KEY> unpack(I index) const;
-        void unpack(I index, std::vector<KEY>& destination) const;
+        void unpack(I index, std::vector<KEY>& destination) const;        
     protected:
-        typename set<SPTRIETPLA, true>::node_t* find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
-        void write_data(KEY* destination, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const;
+        typename set<SPTRIETPLA, true>::node_t* find_metadata(I index, size_t& bindex) const;
   };
 
     template<SPTRIETPL>
     typename set<SPTRIETPLA, true>::node_t* 
     set_stable<SPTRIETPLA>::
-    find_metadata(I index, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
+    find_metadata(I index, size_t& bindex) const
     {
         typename pt::node_t* node = nullptr;
-        typename pt::fwdnode_t* par = nullptr;
         // we can find size without bothering anyone (to much)        
         
         bindex = 0;
@@ -80,7 +78,6 @@ namespace ptrie {
 #endif
             typename pt::entry_t& ent = this->_entries->operator[](index);
             node = ent._node;
-            par = node->_parent;
             typename pt::bucket_t* bckt = node->_data;
             I* ents = bckt->entries(node->_count);
             for (size_t i = 0; i < node->_count; ++i) {
@@ -94,132 +91,31 @@ namespace ptrie {
             }
             assert(found);
         }
-
-        while (par != &this->_root) {
-            path.push(par->_path);
-            par = par->_parent;
-        }
-        
-        size = 0;
-        offset = 0;
-        ps = path.size()/pt::BDIV;
-        if (ps <= 1) {
-            size = node->_data->first(0, bindex);
-            if (ps == 1) {
-                size >>= 8;
-                uchar* bs = (uchar*) & size;
-                for(auto i = 0; i < pt::BDIV; ++i)
-                {
-                    if constexpr (BSIZE < 8)
-                        bs[1] <<= BSIZE;
-                    bs[1] |= path.top();
-                    path.pop();
-                }
-            }
-            uint16_t o = size;
-            for (size_t i = 0; i < bindex; ++i) {
-
-                uint16_t f = node->_data->first(0, i);
-                uchar* fc = (uchar*) & f;
-                uchar* oc = (uchar*) & o;
-                if (ps != 0) {
-                    f >>= 8;
-                    fc[1] = oc[1];
-                    f -= 1;
-                }
-                offset += pt::bytes(f);
-            }
-        } else {
-            for(auto i = 0; i < pt::BDIV*2; ++i)
-            {
-                size <<= BSIZE;
-                size |= path.top();
-                path.pop();
-            }
-            offset = (pt::bytes(size - ps) * bindex);
-        }        
         return node;
-    }
-    
-    template<SPTRIETPL>
-    void
-    set_stable<SPTRIETPLA>::write_data(KEY* dest, typename pt::node_t* node, std::stack<uchar>& path, size_t& bindex, size_t& offset, size_t& ps, uint16_t& size) const
-    {
-        if (size > ps) {
-            uchar* src;
-            if ((size - ps) >= HEAPBOUND) {
-                src = *((uchar**)&(node->_data->data(node->_count)[offset]));
-            } else {
-                src = &(node->_data->data(node->_count)[offset]);
-            }
-
-            if constexpr (byte_iterator<KEY>::continious())
-                memcpy(&byte_iterator<KEY>::access(dest, ps), src, (size - ps));
-            else
-                for(size_t i = 0; i < (size - ps); ++i)
-                    byte_iterator<KEY>::access(dest, ps + i) = src[i];
-        }
-
-        uint16_t first = node->_data->first(0, bindex);
-
-        size_t pos = 0;
-        while (path.size() >= pt::BDIV) {
-            uchar b = 0;
-            for(auto i = 0; i < pt::BDIV; ++i)
-            {
-                if constexpr (BSIZE < 8)
-                    b <<= BSIZE;
-                b |= path.top();
-                path.pop();
-            }
-            byte_iterator<KEY>::access(dest, pos) = b;
-            ++pos;
-        }
-
-
-        if (ps > 0) {
-            uchar* fc = (uchar*) & first;
-            if (ps > 1) {
-                byte_iterator<KEY>::access(dest, pos) = fc[1];
-                ++pos;
-            }
-            byte_iterator<KEY>::access(dest, pos) = fc[0];
-            ++pos;
-        }        
-    }
+    }       
   
     template<SPTRIETPL>
     size_t
     set_stable<SPTRIETPLA>::unpack(I index, KEY* dest) const {
-        size_t bindex, ps, offset;
-        uint16_t size;
-        std::stack<uchar> path;
-        auto node = find_metadata(index, path, bindex, offset, ps, size);
-        write_data(dest, node, path, bindex, offset, ps, size);        
-        return size/byte_iterator<KEY>::element_size();
+        size_t bindex;
+        auto node = find_metadata(index, bindex);
+        return typename pt::ordered_iterator(node, bindex, *this).unpack(dest);
     }
     
     template<SPTRIETPL>
     std::vector<KEY>
     set_stable<SPTRIETPLA>::unpack(I index) const {
-        size_t bindex, ps, offset;
-        uint16_t size;
-        std::stack<uchar> path;
-        auto node = find_metadata(index, path, bindex, offset, ps, size);
-        std::vector<KEY> destination(size/byte_iterator<KEY>::element_size());
-        write_data(destination.data(), node, path, bindex, offset, ps, size);        
-        return destination;   
+        size_t bindex;
+        auto node = find_metadata(index, bindex);
+        return typename pt::ordered_iterator(node, bindex, *this).unpack();
     }
 
     template<SPTRIETPL>
     void
     set_stable<SPTRIETPLA>::unpack(I index, std::vector<KEY>& dest) const {
-        size_t bindex, ps, offset;
-        uint16_t size;
-        std::stack<uchar> path;
-        auto node = find_metadata(index, path, bindex, offset, ps, size);
-        dest.resize(size/byte_iterator<KEY>::element_size());
-        write_data(dest.data(), node, path, bindex, offset, ps, size);        
+        size_t bindex;
+        auto node = find_metadata(index, bindex);
+        return typename pt::ordered_iterator(node, bindex, *this).unpack(dest);
     }    
 }
 

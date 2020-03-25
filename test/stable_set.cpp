@@ -24,8 +24,45 @@
 using namespace ptrie;
 using namespace std;
 
+
+BOOST_AUTO_TEST_CASE(SimpleRIterator)
+{
+    std::cerr << "SimpleRIterator" << std::endl;
+    set_stable<size_t> set;
+    constexpr auto x = 10000;
+    for(size_t i = 0; i < x; ++i)
+    {
+        set.insert(i);
+    }
+    size_t cnt = 0;
+    for(auto b = --set.end(); b != set.begin(); --b)
+    {
+        ++cnt;
+    }
+    BOOST_CHECK_EQUAL(cnt, x-1);
+}
+ 
+
+BOOST_AUTO_TEST_CASE(SimpleIterator)
+{
+    std::cerr << "SimpleIterator" << std::endl;
+    constexpr auto x = 10000;
+    set_stable<size_t> set;
+    for(size_t i = 0; i < x; ++i)
+    {
+        set.insert(i);
+    }
+    size_t cnt = 0;
+    for(auto b = set.begin(); b != set.end(); ++b)
+    {
+        ++cnt;
+    }
+    BOOST_CHECK_EQUAL(cnt, x);
+}
+
 BOOST_AUTO_TEST_CASE(PseudoRand1)
 {
+    std::cerr << "PseudoRand1" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
         set_stable<> set;
         vector<size_t> ids;
@@ -58,6 +95,7 @@ BOOST_AUTO_TEST_CASE(PseudoRand1)
 
 BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
+    std::cerr << "PseudoRandSplitHeap" << std::endl;
     for(size_t seed = 42; seed < (42+10); ++seed) {
         set_stable<unsigned char, sizeof(size_t)+1, 6> set;
         vector<size_t> ids;
@@ -150,6 +188,7 @@ struct ptrie::byte_iterator<type_t>
 
 BOOST_AUTO_TEST_CASE(ComplexType1)
 {
+    std::cerr << "ComplexType1" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
         set_stable<type_t> set;
         vector<size_t> ids;
@@ -185,6 +224,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
 
 BOOST_AUTO_TEST_CASE(ComplexType2)
 {
+    std::cerr << "ComplexType2" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
         set_stable<type_t,9> set;
         vector<size_t> ids;
@@ -219,6 +259,7 @@ BOOST_AUTO_TEST_CASE(ComplexType2)
 
 BOOST_AUTO_TEST_CASE(ComplexType1Vector)
 {
+    std::cerr << "ComplexType1Vector" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
         set_stable<type_t> set;
         vector<size_t> ids;
@@ -257,6 +298,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1Vector)
 
 BOOST_AUTO_TEST_CASE(ComplexType2Vector)
 {
+    std::cerr << "ComplexType2Vector" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
         set_stable<type_t,9> set;
         vector<size_t> ids;
