@@ -234,6 +234,8 @@ namespace ptrie {
         };
         static constexpr const uchar* _masks = &_all_masks[8-BSIZE];
 
+        void move(set& other);
+        
     public:
         set();
         ~set();
@@ -253,8 +255,10 @@ namespace ptrie {
         bool         erase (std::pair<const KEY*, size_t> data)  { return erase(data.first, data.second); }
         bool         erase (const std::vector<KEY>& data)        { return erase(data.data(), data.size()); }
         
-        set(set&&) = default;
-        set& operator=(set&&) = default;
+        set(set&& other) { move(other); }
+        
+        set& operator=(set&& other) { move(other); return *this; }
+        
         set(const set& other) : set()
         {
             *this = other;
@@ -274,7 +278,7 @@ namespace ptrie {
             {
                 fwdnode_t* parent = std::get<0>(next);
                 base_t* child = parent->_children[i];
-                if(child != parent)
+                if(child != parent && child != nullptr)
                 {
                     if(i > 0 && child == parent->_children[i-1]) continue;
                     if(child->_type == 255)
@@ -302,45 +306,46 @@ namespace ptrie {
         _entries = nullptr;
     }
 
-     template<PTRIETPL>
-     void set<PTRIETLPA>::node_t::cleanup(size_t depth, uint16_t encsize) {
-         const auto bdepth = depth / BDIV;
-         assert(bdepth < 2 || encsize > 0);
-         if (bdepth >= 2 && 
-                (encsize < bdepth || // already fully encoded
-                 encsize - bdepth < HEAPBOUND)) // residue is directly encoded
-         {
-             // nothing on heap
-         } else if (bdepth >= 2) {
-             
-             // everything is allocated on heap
-             auto ptr = (uchar **) data();
-             for (size_t i = 0; i < _count; ++i) {
-                 delete[] ptr[i];
-             }
-         } else {
-             size_t offset = 0;
-             for (size_t i = 0; i < _count; ++i) {
-                 auto lencsize = encsize;
-                 auto f = first(i);
-                 if(bdepth != 0)
-                 {
-                    // only keep most sig. bits
-                    lencsize &= ~0xFF00;
-                    //extract most sig. bits and shift to least sig. bits
-                    lencsize |= (f & 0xFF00) >> 8;
-                 }
-                 if ((lencsize-bdepth) >= HEAPBOUND) {
-                     auto ptr = (uchar **) (&(data()[offset]));
-                     delete[] *ptr;
-                 }
-                 offset += bytes(lencsize-bdepth);
-             }
-         }
-         delete[] reinterpret_cast<uchar *>(_data);
-         _data = nullptr;
-         _count = 0;
-     }
+    template<PTRIETPL>
+    void set<PTRIETLPA>::node_t::cleanup(size_t depth, uint16_t encsize) {
+        const auto bdepth = depth / BDIV;
+        assert(bdepth < 2 || encsize > 0);
+        if (bdepth >= 2 && 
+               (encsize < bdepth || // already fully encoded
+                encsize - bdepth < HEAPBOUND)) // residue is directly encoded
+        {
+            // nothing on heap
+        } else if (bdepth >= 2) {
+
+            // everything is allocated on heap
+            auto ptr = (uchar **) data();
+            for (size_t i = 0; i < _count; ++i) {
+                delete[] ptr[i];
+            }
+        } else {
+            assert(_data || _count == 0);
+            size_t offset = 0;
+            for (size_t i = 0; i < _count; ++i) {
+                auto lencsize = encsize;
+                auto f = first(i);
+                if(bdepth != 0)
+                {
+                   // only keep most sig. bits
+                   lencsize &= ~0xFF00;
+                   //extract most sig. bits and shift to least sig. bits
+                   lencsize |= (f & 0xFF00) >> 8;
+                }
+                if ((lencsize-bdepth) >= HEAPBOUND) {
+                    auto ptr = (uchar **) (&(data()[offset]));
+                    delete[] *ptr;
+                }
+                offset += bytes(lencsize-bdepth);
+            }
+        }
+        delete[] reinterpret_cast<uchar *>(_data);
+        _data = nullptr;
+        _count = 0;
+    }
 
     template<PTRIETPL>
     void set<PTRIETLPA>::init()
@@ -359,6 +364,31 @@ namespace ptrie {
         for (; i < WIDTH; ++i) _root._children[i] = &_root;
     }
 
+    template<PTRIETPL>
+    void set<PTRIETLPA>::move(set& other)
+    {
+        _entries = std::move(other._entries);
+        _root._parent = &_root;
+        _root._type = 255;
+        _root._path = 0;
+        for(size_t i = 0; i < WIDTH; ++i)
+        {
+            auto e = _root._children[i] = other._root._children[i];
+            if(e == nullptr)
+                continue;
+            else if(e == &other._root)
+                _root._children[i] = &_root;
+            else
+            {
+                if(e->_type == 255)
+                    static_cast<fwdnode_t*>(e)->_parent = &_root;
+                else
+                    static_cast<node_t*>(e)->_parent = &_root;
+            }
+            other._root._children[i] = nullptr;
+        }
+    }
+    
     template<PTRIETPL>
     set<PTRIETLPA>::set()
     {
