@@ -41,16 +41,19 @@ namespace ptrie {
     typename T = void,
     typename I = size_t
     >
-    class set_stable : public set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
+    class set_stable : protected set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
         using pt = set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
     public:
-        set_stable() : pt()
-        {
-            this->_entries = std::make_unique<linked_bucket_t<typename pt::entry_t, ALLOCSIZE>>(1);
-        }
-        
-        set_stable(set_stable&&) = default;
-        set_stable& operator=(set_stable&&) = default;
+        using pt::set;
+        using pt::insert;
+        using pt::exists;
+        using pt::erase;
+        using node_t = typename pt::node_t;
+        using fwdnode_t = typename pt::fwdnode_t;
+        using pt::key_t; 
+        static constexpr auto bsize = pt::bsize;
+        static constexpr auto bdiv = pt::bdiv;
+        static constexpr auto heapbound = HEAPBOUND;
         
         size_t size() const {
             return this->_entries->size();
@@ -59,16 +62,31 @@ namespace ptrie {
         size_t unpack(I index, KEY* destination) const;
         std::vector<KEY> unpack(I index) const;
         void unpack(I index, std::vector<KEY>& destination) const;        
+        
+        class siterator : public ordered_iterator<set_stable, siterator>
+        {
+        public:
+            siterator(const base_t* base, int16_t index)
+            : ordered_iterator<set_stable, siterator>(base, index) {}
+            I index() const {
+                return static_cast<const typename set_stable::node_t*>(this->_node)
+                        ->entries()[this->_index];
+            }            
+        };
+        
+        siterator begin() const { return ++siterator(&this->_root, 0); }
+        siterator end()   const { return siterator(&this->_root, 256); }
+        friend class siterator;
     protected:
-        typename set<SPTRIETPLA, true>::node_t* find_metadata(I index, size_t& bindex) const;
+        node_t* find_metadata(I index, size_t& bindex) const;
   };
 
     template<SPTRIETPL>
-    typename set<SPTRIETPLA, true>::node_t* 
+    typename set_stable<SPTRIETPLA>::node_t* 
     set_stable<SPTRIETPLA>::
     find_metadata(I index, size_t& bindex) const
     {
-        typename pt::node_t* node = nullptr;
+        node_t* node = nullptr;
         // we can find size without bothering anyone (to much)        
         
         bindex = 0;
@@ -99,7 +117,7 @@ namespace ptrie {
     set_stable<SPTRIETPLA>::unpack(I index, KEY* dest) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
-        return typename pt::ordered_iterator(node, bindex, *this).unpack(dest);
+        return siterator(node, bindex).unpack(dest);
     }
     
     template<SPTRIETPL>
@@ -107,7 +125,7 @@ namespace ptrie {
     set_stable<SPTRIETPLA>::unpack(I index) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
-        return typename pt::ordered_iterator(node, bindex, *this).unpack();
+        return siterator(node, bindex).unpack();
     }
 
     template<SPTRIETPL>
@@ -115,7 +133,7 @@ namespace ptrie {
     set_stable<SPTRIETPLA>::unpack(I index, std::vector<KEY>& dest) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
-        return typename pt::ordered_iterator(node, bindex, *this).unpack(dest);
+        return siterator(node, bindex).unpack(dest);
     }    
 }
 
