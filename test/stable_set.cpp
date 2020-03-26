@@ -38,6 +38,9 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
     for(auto b = --set.end(); b != set.begin(); --b)
     {
         ++cnt;
+        BOOST_REQUIRE(0 <= b.index());
+        BOOST_REQUIRE(b.index() <= x);
+        BOOST_REQUIRE(b.index() == b.unpack().back());
     }
     BOOST_CHECK_EQUAL(cnt, x-1);
 }
@@ -56,6 +59,9 @@ BOOST_AUTO_TEST_CASE(SimpleIterator)
     for(auto b = set.begin(); b != set.end(); ++b)
     {
         ++cnt;
+        BOOST_REQUIRE(0 <= b.index());
+        BOOST_REQUIRE(b.index() <= x);
+        BOOST_REQUIRE(b.index() == b.unpack().back());
     }
     BOOST_CHECK_EQUAL(cnt, x);
 }
@@ -97,7 +103,7 @@ BOOST_AUTO_TEST_CASE(PseudoRandSplitHeap)
 {
     std::cerr << "PseudoRandSplitHeap" << std::endl;
     for(size_t seed = 42; seed < (42+10); ++seed) {
-        set_stable<unsigned char, sizeof(size_t)+1, 6> set;
+        set_stable<unsigned char, size_t, sizeof(size_t)+1, 6> set;
         vector<size_t> ids;
         auto scratchpad = std::make_unique<unsigned char[]>(20+sizeof(size_t));
 
@@ -226,7 +232,7 @@ BOOST_AUTO_TEST_CASE(ComplexType2)
 {
     std::cerr << "ComplexType2" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
-        set_stable<type_t,9> set;
+        set_stable<type_t, size_t,9> set;
         vector<size_t> ids;
         type_t scratchpad;
         for(size_t i = 0; i < 1024*10; ++i) {
@@ -300,7 +306,7 @@ BOOST_AUTO_TEST_CASE(ComplexType2Vector)
 {
     std::cerr << "ComplexType2Vector" << std::endl;
     for(size_t seed = 1337; seed < (1337+10); ++seed) {
-        set_stable<type_t,9> set;
+        set_stable<type_t, size_t,9> set;
         vector<size_t> ids;
         std::vector<type_t> scratchpad(10);
         for(size_t i = 0; i < 1024*10; ++i) {

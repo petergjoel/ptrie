@@ -36,13 +36,24 @@ namespace ptrie {
     uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename I = size_t>
-    class map :
-    public set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I> {
-        using pt = set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
+    class map : protected __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I> {
+        static_assert(!std::is_same<void, T>::value, "T (map-to-type) must not be void");
+        using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
+        using entrylist_t = typename pt::entrylist_t;
     public:
-        map() : pt() {};
-        map(map&&) = default;
-        map& operator=(map&&) = default;
+        using pt::__set_stable;
+        using pt::exists;
+        using pt::erase;
+        using pt::unpack;
+        using pt::insert;
+        
+        using node_t = typename pt::node_t;
+        using fwdnode_t = typename pt::fwdnode_t;
+        using pt::key_t; 
+        static constexpr auto bsize = pt::bsize;
+        static constexpr auto bdiv = pt::bdiv;
+        static constexpr auto heapbound = HEAPBOUND;
+        
         T& get_data(I index);
         T& operator[](KEY key)
         {
@@ -58,6 +69,33 @@ namespace ptrie {
         {
             return get_data(pt::insert(key.data(), key.size()).second);
         }
+
+        class iterator : public ordered_iterator<map, iterator>
+        {
+        public:
+            iterator(const base_t* base, int16_t index, entrylist_t& entries)
+            : ordered_iterator<map, iterator>(base, index), _entries(entries) {}
+            I index() const {
+                return static_cast<const typename pt::node_t*>(this->_node)
+                        ->entries()[this->_index];
+            }
+            
+            T& operator*() const {
+                return _entries[index()]._data;
+            }
+
+            T& operator->() const {
+                return _entries[index()]._data;
+            }
+        private:
+            entrylist_t& _entries;
+        };
+        
+        friend class iterator;
+        
+        iterator begin() const { return ++iterator(&this->_root, 0, *this->_entries.get()); }
+        iterator end()   const { return iterator(&this->_root, 256, *this->_entries.get()); }
+
     };
 
     template<

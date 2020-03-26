@@ -41,8 +41,9 @@ namespace ptrie {
     typename T = void,
     typename I = size_t
     >
-    class set_stable : protected set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
+    class __set_stable : protected set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
         using pt = set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
+        static_assert(std::is_integral<I>::value, "I (index-type) must be an integral");
     public:
         using pt::set;
         using pt::insert;
@@ -63,27 +64,26 @@ namespace ptrie {
         std::vector<KEY> unpack(I index) const;
         void unpack(I index, std::vector<KEY>& destination) const;        
         
-        class siterator : public ordered_iterator<set_stable, siterator>
+        class siterator : public ordered_iterator<__set_stable, siterator>
         {
         public:
             siterator(const base_t* base, int16_t index)
-            : ordered_iterator<set_stable, siterator>(base, index) {}
+            : ordered_iterator<__set_stable, siterator>(base, index) {}
             I index() const {
-                return static_cast<const typename set_stable::node_t*>(this->_node)
+                return static_cast<const typename __set_stable::node_t*>(this->_node)
                         ->entries()[this->_index];
             }            
         };
         
-        siterator begin() const { return ++siterator(&this->_root, 0); }
-        siterator end()   const { return siterator(&this->_root, 256); }
         friend class siterator;
     protected:
         node_t* find_metadata(I index, size_t& bindex) const;
+        using entrylist_t = typename pt::entrylist_t;
   };
 
     template<SPTRIETPL>
-    typename set_stable<SPTRIETPLA>::node_t* 
-    set_stable<SPTRIETPLA>::
+    typename __set_stable<SPTRIETPLA>::node_t* 
+    __set_stable<SPTRIETPLA>::
     find_metadata(I index, size_t& bindex) const
     {
         node_t* node = nullptr;
@@ -114,7 +114,7 @@ namespace ptrie {
   
     template<SPTRIETPL>
     size_t
-    set_stable<SPTRIETPLA>::unpack(I index, KEY* dest) const {
+    __set_stable<SPTRIETPLA>::unpack(I index, KEY* dest) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
         return siterator(node, bindex).unpack(dest);
@@ -122,7 +122,7 @@ namespace ptrie {
     
     template<SPTRIETPL>
     std::vector<KEY>
-    set_stable<SPTRIETPLA>::unpack(I index) const {
+    __set_stable<SPTRIETPLA>::unpack(I index) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
         return siterator(node, bindex).unpack();
@@ -130,11 +130,33 @@ namespace ptrie {
 
     template<SPTRIETPL>
     void
-    set_stable<SPTRIETPLA>::unpack(I index, std::vector<KEY>& dest) const {
+    __set_stable<SPTRIETPLA>::unpack(I index, std::vector<KEY>& dest) const {
         size_t bindex;
         auto node = find_metadata(index, bindex);
         return siterator(node, bindex).unpack(dest);
-    }    
+    }
+    
+    template<
+    typename KEY = unsigned char,
+    typename I = size_t,
+    uint16_t HEAPBOUND = 17,
+    uint16_t SPLITBOUND = 128,
+    uint8_t BSIZE = 8,
+    size_t ALLOCSIZE = (1024 * 64)
+    >
+    class set_stable : private __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, void, I>
+    {
+        using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, void, I>;
+        using iterator = typename pt::siterator;
+        public:
+            using pt::set;
+            using pt::insert;
+            using pt::exists;
+            using pt::erase;
+            using pt::unpack;
+            iterator begin() const { return ++iterator(&this->_root, 0); }
+            iterator end()   const { return iterator(&this->_root, 256); }
+    };
 }
 
 #undef pt

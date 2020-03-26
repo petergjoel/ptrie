@@ -91,10 +91,10 @@ namespace ptrie {
     // not sure if we can inherit from std::iterator here, its ill-defined
     // what e.g. a "distance".
     template<typename N, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    static void build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size);
+    void build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size);
 
     template<typename N, typename KEY, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    static void write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size);
+    void write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size);
     
     
     constexpr uint16_t memsize(uint16_t d, size_t HEAPBOUND) {
