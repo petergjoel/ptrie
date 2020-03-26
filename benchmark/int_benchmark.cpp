@@ -191,7 +191,7 @@ int main(int argc, const char** argv)
     else if(strcmp(type, "ptrie-stable") == 0)
     {
         print_settings(type, elements, seed, sizeof(size_t), deletes, read_rate, 256);
-        ptrie::__set_stable<> set;
+        ptrie::set_stable<> set;
         set_insert_ptrie(set, elements, std::rand(), deletes, read_rate, order);
     }
     else if(strcmp(type, "ptrie-map") == 0)

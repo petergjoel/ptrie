@@ -47,18 +47,18 @@ namespace ptrie {
     typedef unsigned char uchar;
     
     template<typename D, typename N>
-    struct ptrie_el_t {
+    struct __ptrie_el_t {
         N _node;
         D _data;
     };
 
     template<typename N>
-    struct ptrie_el_t<void, N> {
+    struct __ptrie_el_t<void, N> {
         N _node;
     };
     typedef std::pair<bool, size_t> returntype_t;
 
-    struct base_t {
+    struct __base_t {
         uchar _path;
         uchar _type;
     };
@@ -91,21 +91,21 @@ namespace ptrie {
     // not sure if we can inherit from std::iterator here, its ill-defined
     // what e.g. a "distance".
     template<typename N, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    void build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size);
+    void __build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size);
 
     template<typename N, typename KEY, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    void write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size);
+    void __write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size);
     
     
-    constexpr uint16_t memsize(uint16_t d, size_t HEAPBOUND) {
+    constexpr uint16_t __memsize(uint16_t d, size_t HEAPBOUND) {
         if (d >= HEAPBOUND) return sizeof (uchar*);
         else return d;
     }
 
     template<typename P, typename R>
-    class ordered_iterator {
+    class __iterator {
     protected:
-        const base_t* _node = nullptr;
+        const __base_t* _node = nullptr;
         int16_t _index = 0;
         template<int16_t INC, int16_t MAX>
         bool move()
@@ -157,15 +157,15 @@ namespace ptrie {
             }                
         }
     public:
-        ordered_iterator(const base_t* base, int16_t index)
+        __iterator(const __base_t* base, int16_t index)
         : _node(base), _index(index) {}
-        ordered_iterator() = default;
-        ordered_iterator(const ordered_iterator&) = default;
-        ordered_iterator(ordered_iterator&&) = default;
-        ordered_iterator& operator=(const ordered_iterator&) = default;
-        ordered_iterator& operator=(ordered_iterator&&) = default;
+        __iterator() = default;
+        __iterator(const __iterator&) = default;
+        __iterator(__iterator&&) = default;
+        __iterator& operator=(const __iterator&) = default;
+        __iterator& operator=(__iterator&&) = default;
 
-        bool operator==(const ordered_iterator& other) const {
+        bool operator==(const __iterator& other) const {
             if(_node->_type != 255)
                 return _node == other._node && _index == other._index; 
             auto* fwd = static_cast<const typename P::fwdnode_t*>(_node);
@@ -174,7 +174,7 @@ namespace ptrie {
             else if(_index >= 255 && other._index >= 255) return true; // end
             return false;
         }
-        bool operator!=(const ordered_iterator& other) const { return !(*this == other); }
+        bool operator!=(const __iterator& other) const { return !(*this == other); }
 
         R& operator++()
         {
@@ -214,9 +214,9 @@ namespace ptrie {
             uint16_t size;
             std::stack<uchar> path;
             auto node = static_cast<const typename P::node_t*>(_node);
-            build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
+            __build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
                 (node, path, _index, offset, ps, size);
-            write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
+            __write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
                 (dest, node, path, _index, offset, ps, size);
             return size/byte_iterator<typename P::key_t>::element_size();
         }
@@ -227,10 +227,10 @@ namespace ptrie {
             uint16_t size;
             std::stack<uchar> path;
             auto node = static_cast<const typename P::node_t*>(_node);
-            build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
+            __build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
                 (node, path, _index, offset, ps, size);
             std::vector<typename P::key_t> destination(size/byte_iterator<typename P::key_t>::element_size());
-            write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
+            __write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
                 (destination.data(), node, path, _index, offset, ps, size);        
             return destination;   
         }
@@ -241,10 +241,10 @@ namespace ptrie {
             uint16_t size;
             std::stack<uchar> path;
             auto node = static_cast<const typename P::node_t*>(_node);
-            build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
+            __build_path<typename P::node_t, P::bdiv, P::bsize, P::heapbound>
                 (node, path, _index, offset, ps, size);
             dest.resize(size/byte_iterator<typename P::key_t>::element_size());
-            write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
+            __write_data<typename P::node_t, typename P::key_t, P::bdiv, P::bsize, P::heapbound>
                 (node, path, _index, offset, ps, size);
         }                
     };
@@ -262,7 +262,7 @@ namespace ptrie {
     typename I = size_t,
     bool HAS_ENTRIES = false
     >
-    class set {
+    class __ptrie {
     public:
         struct fwdnode_t;
         struct node_t;
@@ -284,7 +284,7 @@ namespace ptrie {
                 
     protected:
 
-        typedef ptrie_el_t<T, node_t*> entry_t;
+        typedef __ptrie_el_t<T, node_t*> entry_t;
         using entrylist_t = linked_bucket_t<entry_t, ALLOCSIZE>;
         struct bucket_t {
 
@@ -316,7 +316,7 @@ namespace ptrie {
 
         // nodes in the tree
     public:
-        struct node_t : public base_t {
+        struct node_t : public __base_t {
             uint16_t _count = 0; // bucket-counts
             uint32_t _totsize = 0; 
             fwdnode_t* _parent = nullptr;
@@ -329,8 +329,8 @@ namespace ptrie {
             constexpr void clone(const node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
         };
 
-        struct fwdnode_t : public base_t {
-            base_t* _children[WIDTH];
+        struct fwdnode_t : public __base_t {
+            __base_t* _children[WIDTH];
             fwdnode_t* _parent;
             constexpr void clone(const fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
             size_t dist_to(fwdnode_t* other) const
@@ -356,17 +356,17 @@ namespace ptrie {
 
         fwdnode_t _root;
 
-        base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const;
+        __base_t* fast_forward(const KEY* data, size_t length, fwdnode_t** tree_pos, uint& byte) const;
         bool bucket_search(const KEY* data, size_t length, node_t* node, uint& b_index, uint byte) const;
 
-        bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node, uint& byte, uint& b_index) const;
+        bool best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, __base_t** node, uint& byte, uint& b_index) const;
 
         void split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t byte);
 
         void split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t byte);
 
         static constexpr uint16_t bytes(const uint16_t d) {
-            return memsize(d, HEAPBOUND);
+            return __memsize(d, HEAPBOUND);
         }
 
         void init();
@@ -395,10 +395,10 @@ namespace ptrie {
         static constexpr const uchar* _masks = &_all_masks[8-BSIZE];
 
     public:
-        void move(set& other);                
+        void move(__ptrie& other);                
     public:
-        set();
-        ~set();
+        __ptrie();
+        ~__ptrie();
         
         using key_t = KEY;
         static constexpr auto bsize = BSIZE;
@@ -421,28 +421,53 @@ namespace ptrie {
         bool         erase (const std::vector<KEY>& data)        { return erase(data.data(), data.size()); }
         
         
-        set(set&& other) { move(other); }
+        __ptrie(__ptrie&& other) { move(other); }
         
-        set& operator=(set&& other) { move(other); return *this; }
+        __ptrie& operator=(__ptrie&& other) { move(other); return *this; }
         
-        set(const set& other) : set()
+        __ptrie(const __ptrie& other) : __ptrie()
         {
             *this = other;
         }
-        set& operator=(const set& other);
+        __ptrie& operator=(const __ptrie& other);
         
-        class siterator : public ordered_iterator<set, siterator>
-        {
-        public:
-            using ordered_iterator<set, siterator>::ordered_iterator;
-        };
-        
-        siterator begin() const { return ++siterator(&this->_root, 0); }
-        siterator end()   const { return siterator(&this->_root, 256); }
     };
 
+    template<
+    typename KEY = uchar,
+    uint16_t HEAPBOUND = 17,
+    uint16_t SPLITBOUND = 129,
+    uint8_t BSIZE = 8,
+    size_t ALLOCSIZE = (1024 * 64)
+    >
+    class set : private __ptrie<KEY,HEAPBOUND,SPLITBOUND,BSIZE,ALLOCSIZE,void,size_t,false> {
+        using pt = __ptrie<KEY,HEAPBOUND,SPLITBOUND,BSIZE,ALLOCSIZE,void,size_t,false>;
+    public:
+        using pt::__ptrie;
+        using pt::insert;
+        using pt::exists;
+        using pt::erase;
+        
+        using node_t = typename pt::node_t;
+        using fwdnode_t = typename pt::fwdnode_t;
+        using pt::key_t; 
+
+        static constexpr auto bsize = pt::bsize;
+        static constexpr auto bdiv = pt::bdiv;
+        static constexpr auto heapbound = HEAPBOUND;
+        
+        class iterator : public __iterator<set, iterator>
+        {
+        public:
+            using __iterator<set, iterator>::__iterator;
+        };
+        
+        iterator begin() const { return ++iterator(&this->_root, 0); }
+        iterator end()   const { return iterator(&this->_root, 256); }
+    };
+    
     template<PTRIETPL>
-    set<PTRIETLPA>::~set() {
+    __ptrie<PTRIETLPA>::~__ptrie() {
         std::stack<std::tuple<fwdnode_t*,size_t, uint16_t>> stack;
         stack.emplace(&_root,0,0);
         while(!stack.empty())
@@ -452,7 +477,7 @@ namespace ptrie {
             for(size_t i = 0; i < WIDTH; ++i)
             {
                 fwdnode_t* parent = std::get<0>(next);
-                base_t* child = parent->_children[i];
+                __base_t* child = parent->_children[i];
                 if(child != parent && child != nullptr)
                 {
                     if(i > 0 && child == parent->_children[i-1]) continue;
@@ -482,7 +507,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<PTRIETLPA>::node_t::cleanup(size_t depth, uint16_t encsize) {
+    void __ptrie<PTRIETLPA>::node_t::cleanup(size_t depth, uint16_t encsize) {
         const auto bdepth = depth / BDIV;
         assert(bdepth < 2 || encsize > 0);
         if (bdepth >= 2 && 
@@ -523,7 +548,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<PTRIETLPA>::init()
+    void __ptrie<PTRIETLPA>::init()
     {
         _entries = nullptr;
         if constexpr (HAS_ENTRIES)
@@ -540,7 +565,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<PTRIETLPA>::move(set& other)
+    void __ptrie<PTRIETLPA>::move(__ptrie& other)
     {
         _entries = std::move(other._entries);
         _root._parent = nullptr;
@@ -565,20 +590,20 @@ namespace ptrie {
     }
     
     template<PTRIETPL>
-    set<PTRIETLPA>::set()
+    __ptrie<PTRIETLPA>::__ptrie()
     {
         init();
     }
 
     template<PTRIETPL>
-    set<PTRIETLPA>& set<PTRIETLPA>::operator=(const ptrie::set<PTRIETLPA> &other) 
+    __ptrie<PTRIETLPA>& __ptrie<PTRIETLPA>::operator=(const ptrie::__ptrie<PTRIETLPA> &other) 
     {
         _root.clone(other._root, _entries.get(), other._entries.get(), 0, 0);
         return *this;
     }
     
     template<PTRIETPL>
-    constexpr void set<PTRIETLPA>::fwdnode_t::clone(const set<PTRIETLPA>::fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth)
+    constexpr void __ptrie<PTRIETLPA>::fwdnode_t::clone(const __ptrie<PTRIETLPA>::fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth)
     {
         _path = other._path;
         _type = 255;
@@ -625,7 +650,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    constexpr void set<PTRIETLPA>::node_t::clone(const set<PTRIETLPA>::node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t encsize, size_t depth) {
+    constexpr void __ptrie<PTRIETLPA>::node_t::clone(const __ptrie<PTRIETLPA>::node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t encsize, size_t depth) {
         const auto bdepth = depth / BDIV;
         _path = other._path;
         _type = other._type;
@@ -679,8 +704,8 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    base_t*
-    set<PTRIETLPA>::fast_forward(const KEY* data, size_t s, fwdnode_t** tree_pos, uint& p_byte) const {
+    __base_t*
+    __ptrie<PTRIETLPA>::fast_forward(const KEY* data, size_t s, fwdnode_t** tree_pos, uint& p_byte) const {
         fwdnode_t* t_pos = *tree_pos;
 
         uchar* sc = (uchar*) & s;
@@ -688,7 +713,7 @@ namespace ptrie {
         do {
             *tree_pos = t_pos;
 
-            base_t* next;
+            __base_t* next;
             const auto byte = p_byte / BDIV;
             uchar nb;
             if (byte >= 2) nb = byte_iterator<KEY>::const_access(data, byte - 2);
@@ -713,7 +738,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<PTRIETLPA>::bucket_search(const KEY* target, size_t size, node_t* node, uint& b_index, uint byte) const {
+    bool __ptrie<PTRIETLPA>::bucket_search(const KEY* target, size_t size, node_t* node, uint& b_index, uint byte) const {
         // run through the stored data in the bucket, looking for matches
         // start by creating an encoding that "points" to the "unmatched"
         // part of the encoding. Notice, this is a shallow copy, no actual
@@ -844,12 +869,12 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    bool set<PTRIETLPA>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, base_t** node,
+    bool __ptrie<PTRIETLPA>::best_match(const KEY* data, size_t length, fwdnode_t** tree_pos, __base_t** node,
             uint& p_byte, uint& b_index) const {
         // run through tree as long as there are branches covering some of 
         // the encoding
         *node = fast_forward(data, length, tree_pos, p_byte);
-        if((base_t*)*node != (base_t*)*tree_pos) {
+        if((__base_t*)*node != (__base_t*)*tree_pos) {
             return bucket_search(data, length, (node_t*)*node, b_index, p_byte/BDIV);
         } 
         else
@@ -860,7 +885,7 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void set<PTRIETLPA>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
+    void __ptrie<PTRIETLPA>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
     {
         if(bsize == -1)
         {
@@ -1080,7 +1105,7 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
-    void set<PTRIETLPA>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) {
+    void __ptrie<PTRIETLPA>::split_node(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) {
 
         assert(bsize >= -1);
         assert(bsize < std::numeric_limits<int32_t>::max());
@@ -1245,13 +1270,13 @@ namespace ptrie {
 
     template<PTRIETPL>
     std::pair<bool, size_t>
-    set<PTRIETLPA>::exists(const KEY* data, size_t length) const {
+    __ptrie<PTRIETLPA>::exists(const KEY* data, size_t length) const {
         assert(length <= 65536);
 
         uint b_index = 0;
 
         fwdnode_t* fwd = const_cast<fwdnode_t*>(&_root);
-        base_t* base = nullptr;
+        __base_t* base = nullptr;
         uint byte = 0;
 
         b_index = 0;
@@ -1268,14 +1293,14 @@ namespace ptrie {
 
     template<PTRIETPL>
     returntype_t
-    set<PTRIETLPA>::insert(const KEY* data, size_t length) {
+    __ptrie<PTRIETLPA>::insert(const KEY* data, size_t length) {
         assert(length <= 65536);
         const auto size = byte_iterator<KEY>::element_size() * length;
         uint b_index = 0;
 
         fwdnode_t* fwd = &_root;
         node_t* node = nullptr;
-        base_t* base = nullptr;
+        __base_t* base = nullptr;
         uint p_byte = 0;
 
         bool res = best_match(data, size, &fwd, &base, p_byte, b_index);
@@ -1288,7 +1313,7 @@ namespace ptrie {
             return ret;
         }
         const auto byte = p_byte / BDIV;
-        if(base == (base_t*)fwd)
+        if(base == (__base_t*)fwd)
         {
             node = new node_t;
             node->_count = 0;
@@ -1470,7 +1495,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<PTRIETLPA>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
+    __ptrie<PTRIETLPA>::inject_byte(node_t* node, uchar topush, size_t totsize, std::function<uint16_t(size_t)> _sizes)
     {
         bucket_t *nbucket = node->_data;
         if(totsize > 0) {
@@ -1542,7 +1567,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void 
-    set<PTRIETLPA>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::merge_empty(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
          * If a node is emtpy, we can remove all the way down til we meet some 
@@ -1562,7 +1587,7 @@ namespace ptrie {
                 fwdnode_t* next = parent->_parent;
                 delete parent;
                 parent = next;
-                base_t* other = parent;
+                __base_t* other = parent;
                 for(size_t i = 0; i < WIDTH; ++i)
                 {
                     if(parent->_children[i] != parent && other != parent->_children[i])
@@ -1602,7 +1627,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     bool 
-    set<PTRIETLPA>::merge_nodes(node_t* node, node_t* other, uchar path)
+    __ptrie<PTRIETLPA>::merge_nodes(node_t* node, node_t* other, uchar path)
     {
         /*
          * Migrate data from "other"-node to "node"
@@ -1660,7 +1685,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<PTRIETLPA>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
     {
         assert(node);
         assert(byte > 0);
@@ -1689,7 +1714,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void 
-    set<PTRIETLPA>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::readd_byte(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         /*
          * We are removing a parent, so we need to re-add the byte from the path
@@ -1742,7 +1767,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<PTRIETLPA>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::merge_regular(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
 #ifndef NDEBUG
         {
@@ -1772,7 +1797,7 @@ namespace ptrie {
         assert(node->_type <= BSIZE);
         if(node->_count > SPLITBOUND / 3) return;
         uchar path = node->_path;
-        base_t* child;
+        __base_t* child;
         auto parent = node->_parent;
         if(path & _masks[node->_type - 1])
         {
@@ -1889,7 +1914,7 @@ namespace ptrie {
     
     template<PTRIETPL>
     void
-    set<PTRIETLPA>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::merge_down(node_t* node, int on_heap, const KEY* data, size_t byte)
     {
         if(node->_count > SPLITBOUND/3) return;
 
@@ -1918,7 +1943,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    set<PTRIETLPA>::erase(node_t* node, size_t bindex, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::erase(node_t* node, size_t bindex, int on_heap, const KEY* data, size_t byte)
     {
         
         // first find size and amount before
@@ -2042,14 +2067,14 @@ namespace ptrie {
 
     template<PTRIETPL>
     bool
-    set<PTRIETLPA>::erase(const KEY *data, size_t length)
+    __ptrie<PTRIETLPA>::erase(const KEY *data, size_t length)
     {
         const auto size = length*byte_iterator<KEY>::element_size();
         assert(size <= 65536);
         uint b_index = 0;
 
         fwdnode_t* fwd = &_root;
-        base_t* base = nullptr;
+        __base_t* base = nullptr;
         uint p_byte = 0;
 
         b_index = 0;
@@ -2072,7 +2097,7 @@ namespace ptrie {
     }
     
     template<typename N, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    void build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size)
+    void __build_path(const N* node, std::stack<uchar>& path, uint16_t bindex, size_t& offset, size_t& ps, uint16_t& size)
     {
         auto par = node->_parent;
         while (par && par->_parent != nullptr) {
@@ -2107,7 +2132,7 @@ namespace ptrie {
                     fc[1] = oc[1];
                     f -= 1;
                 }
-                offset += memsize(f, HEAPBOUND);
+                offset += __memsize(f, HEAPBOUND);
             }
         } else {
             for(size_t i = 0; i < BDIV*2; ++i)
@@ -2116,12 +2141,12 @@ namespace ptrie {
                 size |= path.top();
                 path.pop();
             }
-            offset = (memsize(size - ps, HEAPBOUND) * bindex);
+            offset = (__memsize(size - ps, HEAPBOUND) * bindex);
         }        
     }
     
     template<typename N, typename KEY, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    static void write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size)
+    static void __write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size)
     {
         if (size > ps) {
             uchar* src;

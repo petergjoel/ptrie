@@ -36,7 +36,7 @@ namespace ptrie {
     uint8_t BSIZE = 8,
     size_t ALLOCSIZE = (1024 * 64),
     typename I = size_t>
-    class map : protected __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I> {
+    class map : private __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I> {
         static_assert(!std::is_same<void, T>::value, "T (map-to-type) must not be void");
         using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
         using entrylist_t = typename pt::entrylist_t;
@@ -70,11 +70,11 @@ namespace ptrie {
             return get_data(pt::insert(key.data(), key.size()).second);
         }
 
-        class iterator : public ordered_iterator<map, iterator>
+        class iterator : public __iterator<map, iterator>
         {
         public:
-            iterator(const base_t* base, int16_t index, entrylist_t& entries)
-            : ordered_iterator<map, iterator>(base, index), _entries(entries) {}
+            iterator(const __base_t* base, int16_t index, entrylist_t& entries)
+            : __iterator<map, iterator>(base, index), _entries(entries) {}
             I index() const {
                 return static_cast<const typename pt::node_t*>(this->_node)
                         ->entries()[this->_index];

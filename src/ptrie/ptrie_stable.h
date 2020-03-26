@@ -41,17 +41,19 @@ namespace ptrie {
     typename T = void,
     typename I = size_t
     >
-    class __set_stable : protected set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
-        using pt = set<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
+    class __set_stable : protected __ptrie<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true> {
+        using pt = __ptrie<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
         static_assert(std::is_integral<I>::value, "I (index-type) must be an integral");
     public:
-        using pt::set;
+        using pt::__ptrie;
         using pt::insert;
         using pt::exists;
         using pt::erase;
+
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
         using pt::key_t; 
+
         static constexpr auto bsize = pt::bsize;
         static constexpr auto bdiv = pt::bdiv;
         static constexpr auto heapbound = HEAPBOUND;
@@ -64,11 +66,11 @@ namespace ptrie {
         std::vector<KEY> unpack(I index) const;
         void unpack(I index, std::vector<KEY>& destination) const;        
         
-        class siterator : public ordered_iterator<__set_stable, siterator>
+        class siterator : public __iterator<__set_stable, siterator>
         {
         public:
-            siterator(const base_t* base, int16_t index)
-            : ordered_iterator<__set_stable, siterator>(base, index) {}
+            siterator(const __base_t* base, int16_t index)
+            : __iterator<__set_stable, siterator>(base, index) {}
             I index() const {
                 return static_cast<const typename __set_stable::node_t*>(this->_node)
                         ->entries()[this->_index];
@@ -149,7 +151,7 @@ namespace ptrie {
         using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, void, I>;
         using iterator = typename pt::siterator;
         public:
-            using pt::set;
+            using pt::__ptrie;
             using pt::insert;
             using pt::exists;
             using pt::erase;
