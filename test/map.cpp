@@ -202,3 +202,25 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
         }
     }
 }
+
+
+BOOST_AUTO_TEST_CASE(SimpleIterator)
+{
+    std::cerr << "SimpleIterator" << std::endl;
+    constexpr auto x = 10000;
+    ptrie::map<size_t, size_t> set;
+    for(size_t i = 0; i < x; ++i)
+    {
+        set[i] = i;
+    }
+    size_t cnt = 0;
+    for(auto b = set.begin(); b != set.end(); ++b)
+    {
+        BOOST_REQUIRE(b.index() == *b);
+        BOOST_REQUIRE(0 <= b.index());
+        BOOST_REQUIRE(b.index() <= x);
+        BOOST_REQUIRE(b.index() == b.unpack().back());
+        ++cnt;
+    }
+    BOOST_CHECK_EQUAL(cnt, x);
+}

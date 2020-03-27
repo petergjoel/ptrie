@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteMod)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
 {
-    set_stable<unsigned char, sizeof(size_t)+1, 6> set;
+    set_stable<unsigned char, size_t, sizeof(size_t)+1, 6> set;
     try_insert(set,
               [](size_t i){
                   auto data = std::make_unique<unsigned char[]>(1);
@@ -161,7 +161,8 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteSplit)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 {
-    set_stable<unsigned char, sizeof(size_t)+1, 6> set;
+    std::cerr << "InsertDeleteByteModSplit" << std::endl;
+    set_stable<unsigned char, size_t, sizeof(size_t)+1, 6> set;
     try_insert(set,
               [](size_t i){
                   auto data = std::make_unique<unsigned char[]>(1);
@@ -197,8 +198,9 @@ BOOST_AUTO_TEST_CASE(InsertDeleteByteModSplit)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 {
+    std::cerr << "InsertDeleteLarge" << std::endl;
     const int max = 8000;
-    set_stable<unsigned char, sizeof(size_t)+1,6> set;
+    set_stable<unsigned char, size_t, sizeof(size_t)+1,6> set;
     try_insert(set,
               [](size_t i){
                   return rand_data(i, 16, 16);
@@ -249,8 +251,9 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge2)
 {
+    std::cerr << "InsertDeleteLarge2" << std::endl;
     const int max = 8000;
-    set_stable<unsigned char, sizeof(size_t)+1,6> set;
+    set_stable<unsigned char, size_t, sizeof(size_t)+1,6> set;
     auto fun = [](size_t i){
         if((i % 2) == 0)
             return rand_data(i, 17, 15);
@@ -304,8 +307,9 @@ BOOST_AUTO_TEST_CASE(InsertDeleteLarge2)
 
 BOOST_AUTO_TEST_CASE(InsertDeleteLarge3)
 {
+    std::cerr << "InsertDeleteLarge3" << std::endl;
     const int max = 8000;
-    set_stable<unsigned char, sizeof(size_t)+1,6> set;
+    set_stable<unsigned char, size_t, sizeof(size_t)+1,6> set;
     auto fun = [](size_t i){
         if((i % 2) == 0)
             return rand_data(i, 17, 15);

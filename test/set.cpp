@@ -140,3 +140,57 @@ BOOST_AUTO_TEST_CASE(SimpleCopy)
             BOOST_REQUIRE(!cpy.exists(i).first);
     }
 }
+
+BOOST_AUTO_TEST_CASE(SimpleIteratorInvariant)
+{
+    set<size_t> set;
+    BOOST_REQUIRE(set.begin() == set.end());
+}
+
+BOOST_AUTO_TEST_CASE(SingleIterator)
+{
+    set<size_t> set;
+    set.insert(1);
+    auto b = set.begin();
+    auto e = set.end();
+    BOOST_REQUIRE(b != e);
+    ++b;
+    BOOST_REQUIRE(b == e);
+    --b;
+    BOOST_REQUIRE(b == set.begin());
+    ++b;
+    BOOST_REQUIRE(b == set.end());
+    --e;
+    BOOST_REQUIRE(e == set.begin());
+}
+
+BOOST_AUTO_TEST_CASE(SimpleIterator)
+{
+    set<size_t> set;
+    for(size_t i = 0; i < 100000; ++i)
+    {
+        set.insert(i);
+    }
+    size_t cnt = 0;
+    for(auto b = set.begin(); b != set.end(); ++b)
+    {
+        ++cnt;
+    }
+    BOOST_CHECK_EQUAL(cnt, 100000);
+}
+
+BOOST_AUTO_TEST_CASE(SimpleRIterator)
+{
+    set<size_t> set;
+    for(size_t i = 0; i < 100000; ++i)
+    {
+        set.insert(i);
+    }
+    size_t cnt = 0;
+    for(auto b = --set.end(); b != set.begin(); --b)
+    {
+        ++cnt;
+    }
+    BOOST_CHECK_EQUAL(cnt, 100000-1);
+}
+ 
