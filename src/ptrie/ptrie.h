@@ -32,6 +32,7 @@
 #include <string.h>
 #include <functional>
 #include <memory>
+#include <tuple>
 
 #include "linked_bucket.h"
 
@@ -122,7 +123,7 @@ namespace ptrie {
     protected:
 
         typedef ptrie_el_t<T, node_t*> entry_t;
-        
+        using entrylist_t = linked_bucket_t<entry_t, ALLOCSIZE>;
         struct bucket_t {
 
             bucket_t() {
@@ -158,11 +159,18 @@ namespace ptrie {
             uint32_t _totsize = 0; 
             fwdnode_t* _parent = nullptr;
             bucket_t* _data = nullptr; // back-pointers to data-array up to date
+            void cleanup(size_t depth, uint16_t remainder);
+            constexpr uchar* data() const { return _data->data(_count); }
+            constexpr uint16_t& first(size_t index) const { return _data->first(_count, index); }
+            constexpr uint16_t* first() const { return &_data->first(_count, 0); }
+            constexpr auto entries() const { return _data->entries(_count); }
+            constexpr void clone(const node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
         };
 
         struct fwdnode_t : public base_t {
             base_t* _children[WIDTH];
             fwdnode_t* _parent;
+            constexpr void clone(const fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
             size_t dist_to(fwdnode_t* other) const
             {
                 assert(this);
@@ -182,7 +190,7 @@ namespace ptrie {
             }
         };
 
-        std::shared_ptr<linked_bucket_t<entry_t, ALLOCSIZE>> _entries = nullptr;
+        std::shared_ptr<entrylist_t> _entries = nullptr;
 
         fwdnode_t _root;
     protected:
@@ -226,6 +234,8 @@ namespace ptrie {
         };
         static constexpr const uchar* _masks = &_all_masks[8-BSIZE];
 
+        void move(set& other);
+        
     public:
         set();
         ~set();
@@ -245,42 +255,96 @@ namespace ptrie {
         bool         erase (std::pair<const KEY*, size_t> data)  { return erase(data.first, data.second); }
         bool         erase (const std::vector<KEY>& data)        { return erase(data.data(), data.size()); }
         
-        set(set&&) = default;
-        set& operator=(set&&) = default;
-
+        set(set&& other) { move(other); }
+        
+        set& operator=(set&& other) { move(other); return *this; }
+        
+        set(const set& other) : set()
+        {
+            *this = other;
+        }
+        set& operator=(const set& other);
     };
 
     template<PTRIETPL>
     set<PTRIETLPA>::~set() {
-        std::stack<fwdnode_t*> stack;
-        stack.push(&_root);
+        std::stack<std::tuple<fwdnode_t*,size_t, uint16_t>> stack;
+        stack.emplace(&_root,0,0);
         while(!stack.empty())
         {
-            fwdnode_t* next = stack.top();
+            auto next = stack.top();
             stack.pop();
             for(size_t i = 0; i < WIDTH; ++i)
             {
-                base_t* child = next->_children[i];
-                if(child != next)
+                fwdnode_t* parent = std::get<0>(next);
+                base_t* child = parent->_children[i];
+                if(child != parent && child != nullptr)
                 {
-                    if(i > 0 && child == next->_children[i-1]) continue;
+                    if(i > 0 && child == parent->_children[i-1]) continue;
                     if(child->_type == 255)
                     {
-                        stack.push((fwdnode_t*)child);
+                        auto f = std::get<2>(next);
+                        if(std::get<1>(next) / BDIV < 2)
+                        {
+                            // we add bits from the most significant to the least
+                            f |= (child->_path << ((16-BSIZE)-(BSIZE*std::get<1>(next))));
+                        }
+                        assert(child->_path == i);
+                        stack.emplace((fwdnode_t*)child, std::get<1>(next) + 1, f);
                     }
                     else
                     {
                         node_t* node = (node_t*) child;
-                        // TODO: we should delete data here also!
-                        delete[] (uchar*)node->_data;
+                        node->cleanup(std::get<1>(next), std::get<2>(next));
                         delete node;
                     }
                 }
             }
-            if(&_root != next)
-                delete next;
+            if(&_root != std::get<0>(next))
+                delete std::get<0>(next);
         }
         _entries = nullptr;
+    }
+
+    template<PTRIETPL>
+    void set<PTRIETLPA>::node_t::cleanup(size_t depth, uint16_t encsize) {
+        const auto bdepth = depth / BDIV;
+        assert(bdepth < 2 || encsize > 0);
+        if (bdepth >= 2 && 
+               (encsize < bdepth || // already fully encoded
+                encsize - bdepth < HEAPBOUND)) // residue is directly encoded
+        {
+            // nothing on heap
+        } else if (bdepth >= 2) {
+
+            // everything is allocated on heap
+            auto ptr = (uchar **) data();
+            for (size_t i = 0; i < _count; ++i) {
+                delete[] ptr[i];
+            }
+        } else {
+            assert(_data || _count == 0);
+            size_t offset = 0;
+            for (size_t i = 0; i < _count; ++i) {
+                auto lencsize = encsize;
+                auto f = first(i);
+                if(bdepth != 0)
+                {
+                   // only keep most sig. bits
+                   lencsize &= ~0xFF00;
+                   //extract most sig. bits and shift to least sig. bits
+                   lencsize |= (f & 0xFF00) >> 8;
+                }
+                if ((lencsize-bdepth) >= HEAPBOUND) {
+                    auto ptr = (uchar **) (&(data()[offset]));
+                    delete[] *ptr;
+                }
+                offset += bytes(lencsize-bdepth);
+            }
+        }
+        delete[] reinterpret_cast<uchar *>(_data);
+        _data = nullptr;
+        _count = 0;
     }
 
     template<PTRIETPL>
@@ -289,7 +353,7 @@ namespace ptrie {
         _entries = nullptr;
         if constexpr (HAS_ENTRIES)
         {
-            _entries = std::make_unique<linked_bucket_t<entry_t, ALLOCSIZE>>(1);
+            _entries = std::make_unique<entrylist_t>(1);
         }
 
         _root._parent = nullptr;
@@ -301,9 +365,142 @@ namespace ptrie {
     }
 
     template<PTRIETPL>
+    void set<PTRIETLPA>::move(set& other)
+    {
+        _entries = std::move(other._entries);
+        _root._parent = &_root;
+        _root._type = 255;
+        _root._path = 0;
+        for(size_t i = 0; i < WIDTH; ++i)
+        {
+            auto e = _root._children[i] = other._root._children[i];
+            if(e == nullptr)
+                continue;
+            else if(e == &other._root)
+                _root._children[i] = &_root;
+            else
+            {
+                if(e->_type == 255)
+                    static_cast<fwdnode_t*>(e)->_parent = &_root;
+                else
+                    static_cast<node_t*>(e)->_parent = &_root;
+            }
+            other._root._children[i] = nullptr;
+        }
+    }
+    
+    template<PTRIETPL>
     set<PTRIETLPA>::set()
     {
         init();
+    }
+
+    template<PTRIETPL>
+    set<PTRIETLPA>& set<PTRIETLPA>::operator=(const ptrie::set<PTRIETLPA> &other) 
+    {
+        _root.clone(other._root, _entries.get(), other._entries.get(), 0, 0);
+        return *this;
+    }
+    
+    template<PTRIETPL>
+    constexpr void set<PTRIETLPA>::fwdnode_t::clone(const set<PTRIETLPA>::fwdnode_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth)
+    {
+        _path = other._path;
+        _type = 255;
+
+        for(size_t i = 0; i < WIDTH; ++i)
+        {
+            auto* child = other._children[i];
+            if(child == nullptr)
+            {
+                _children[i] = nullptr;
+                continue;
+            }
+            if(&other == child)
+            {
+                _children[i] = this;
+                continue;
+            }
+            if(i > 0 && child == other._children[i-1])
+            {
+                _children[i] = _children[i-1];
+                continue;
+            }
+            if(child->_type == 255)
+            {
+                auto nn = new fwdnode_t;
+                _children[i] = nn;
+                auto f = esize;
+                if(depth / BDIV < 2)
+                {
+                    // we add bits from the most significant to the least
+                    f |= (child->_path << ((16-BSIZE)-(BSIZE*depth)));
+                }
+                nn->clone(*static_cast<const fwdnode_t*>(child), entries, other_entries, f, depth+1);
+                nn->_parent = this;
+            }
+            else
+            {
+                auto nn = new node_t;
+                _children[i] = nn;
+                nn->clone(*static_cast<const node_t*>(child), entries, other_entries, esize, depth);
+                nn->_parent = this;
+            }
+        }
+    }
+
+    template<PTRIETPL>
+    constexpr void set<PTRIETLPA>::node_t::clone(const set<PTRIETLPA>::node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t encsize, size_t depth) {
+        const auto bdepth = depth / BDIV;
+        _path = other._path;
+        _type = other._type;
+        _count = other._count;
+        _totsize = other._totsize;
+        _data = (bucket_t*) new uchar[_totsize + bucket_t::overhead(_count)];
+        std::copy(other.first(), other.first() + _count, first());
+        if (bdepth >= 2 &&
+                (encsize < bdepth || // already fully encoded
+                encsize - bdepth < HEAPBOUND)) // residue is directly encoded
+        {
+            std::copy(other.data(), other.data() + other._totsize, data());
+        } else if (bdepth >= 2) {
+
+            // everything is allocated on heap
+            auto ptr = (uchar **) data();
+            auto optr = (uchar **) other.data();
+            for (size_t i = 0; i < _count; ++i) {
+                ptr[i] = new uchar[(encsize - bdepth)];
+                std::copy(optr[i], optr[i] + encsize, ptr[i]);
+            }
+        } else {
+            size_t offset = 0;
+            for (size_t i = 0; i < _count; ++i) {
+                auto lencsize = encsize;
+                auto f = first(i);
+                if (bdepth != 0) {
+                    // only keep most sig. bits
+                    lencsize &= ~0xFF00;
+                    //extract most sig. bits and shift to least sig. bits
+                    lencsize |= (f & 0xFF00) >> 8;
+                }
+                if ((lencsize - bdepth) >= HEAPBOUND) {
+                    auto ptr = (uchar **) (&(data()[offset]));
+                    auto optr = (uchar **) (&(other.data()[offset]));
+                    ptr[0] = new uchar[lencsize];
+                    std::copy(optr[0], optr[0] + lencsize, ptr[0]);
+                } else {
+                    std::copy(other.data() + offset, other.data() + lencsize, data() + offset);
+                }
+                offset += bytes(lencsize - bdepth);
+            }
+        }
+        if constexpr (HAS_ENTRIES) {
+            for (size_t i = 0; i < _count; ++i) {
+                auto eid = entries.next(0);
+                entries[i] = eid;
+                entries[eid] = other_entries[other->entries()[i]];
+            }
+        }
     }
 
     template<PTRIETPL>
@@ -596,7 +793,7 @@ namespace ptrie {
             const auto j = i - offset;
             node._data->first(node._count, j) = (bucket->first(bucketsize, i) << 8*to_cut);
             if (lengths[i] > 0) {
-                uchar* dest = &(node._data->data(node._count)[nbcnt]);
+                uchar* dest = &(node.data()[nbcnt]);
                 if (next_length >= HEAPBOUND) {
                     uchar* data = new uchar[next_length];
                     memcpy(dest, &data, sizeof (uchar*));
@@ -626,7 +823,7 @@ namespace ptrie {
                 if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
                     if (next_length >= HEAPBOUND) {
-                        uchar* tmp = *((uchar**)&(node._data->data(node._count)[nbcnt]));
+                        uchar* tmp = *((uchar**)&(node.data()[nbcnt]));
                         assert(tmp == dest);
                         assert(memcmp(tmp, &(src[to_cut]), next_length) == 0);
                     }
@@ -849,8 +1046,8 @@ namespace ptrie {
             memcpy(&h_node->_data->first(h_node->_count), &(old->first(bucketsize, node->_count)), sizeof (uint16_t) * h_node->_count);
 
             // copy data
-            memcpy(node->_data->data(node->_count), old->data(bucketsize), node->_totsize);
-            memcpy(h_node->_data->data(h_node->_count), &(old->data(bucketsize)[node->_totsize]), h_node->_totsize);
+            memcpy(node->data(), old->data(bucketsize), node->_totsize);
+            memcpy(h_node->data(), &(old->data(bucketsize)[node->_totsize]), h_node->_totsize);
 
             if constexpr (HAS_ENTRIES) {
                 I* ents = old->entries(bucketsize);
@@ -1034,10 +1231,10 @@ namespace ptrie {
         }
         // copy over old data
         memcpy(nbucket->data(nbucketcount),
-                node->_data->data(node->_count), tmpsize);
+                node->data(), tmpsize);
 
         memcpy(&(nbucket->data(nbucketcount)[tmpsize + nitemsize]),
-                &(node->_data->data(node->_count)[tmpsize]), (node->_totsize - tmpsize));
+                &(node->data()[tmpsize]), (node->_totsize - tmpsize));
 
         // copy over new data
         if (copyval) {
@@ -1127,7 +1324,7 @@ namespace ptrie {
                 if(size < HEAPBOUND && size > 1)
                 {
                     memcpy(&(nbucket->data(node->_count)[dcnt]),
-                               &(node->_data->data(node->_count)[ocnt]),
+                               &(node->data()[ocnt]),
                                        size - 1);
                     ocnt += size - 1;
                     dcnt += size - 1;
@@ -1141,7 +1338,7 @@ namespace ptrie {
                     dcnt += sizeof(size_t);
                     if(size == HEAPBOUND)
                     {
-                        src = &(node->_data->data(node->_count)[ocnt]);
+                        src = &(node->data()[ocnt]);
                         memcpy(dest, src, size - 1);
                         ocnt += size - 1;
                     }
@@ -1149,7 +1346,7 @@ namespace ptrie {
                     {
                         assert(size > HEAPBOUND);
                         // allready on heap, but we need to expand it
-                        src = *(uchar**)&(node->_data->data(node->_count)[ocnt]);
+                        src = *(uchar**)&(node->data()[ocnt]);
                         memcpy(dest, src, size - 1);
                         ocnt += sizeof(size_t);
                     }
@@ -1273,10 +1470,10 @@ namespace ptrie {
         // copy over old data
         if (nbucketsize > 0) {
             memcpy(nbucket->data(nbucketcount),
-                   first->_data->data(first->_count), first->_totsize);
+                   first->data(), first->_totsize);
 
             memcpy(&(nbucket->data(nbucketcount)[first->_totsize]),
-                   second->_data->data(second->_count), second->_totsize);
+                   second->data(), second->_totsize);
 
         }
         delete[] (uchar*)node->_data;
@@ -1583,7 +1780,7 @@ namespace ptrie {
         if(size >= HEAPBOUND)
         {
             assert(before + sizeof(size_t) <= node->_totsize);
-            uchar* src = *((uchar**)&(node->_data->data(node->_count)[before]));
+            uchar* src = *((uchar**)&(node->data()[before]));
             delete[] src;
             size = sizeof(size_t);
         }
@@ -1620,10 +1817,10 @@ namespace ptrie {
             // copy over old data
             if (nbucketsize > 0) {
                 memcpy(nbucket->data(nbucketcount),
-                       node->_data->data(node->_count), before);
+                       node->data(), before);
                 assert(nbucketsize >= before);
                 memcpy(&(nbucket->data(nbucketcount)[before]),
-                       &(node->_data->data(node->_count)[before + size]),
+                       &(node->data()[before + size]),
                        (nbucketsize - before));
 
             }
