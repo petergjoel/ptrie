@@ -17,3 +17,8 @@ target_link_libraries(Set       ${Boost_LIBRARIES} ptrie)
 target_link_libraries(Delete    ${Boost_LIBRARIES} ptrie)
 target_link_libraries(StableSet ${Boost_LIBRARIES} ptrie)
 target_link_libraries(Map       ${Boost_LIBRARIES} ptrie)
+
+add_test(NAME Set       COMMAND Set)
+add_test(NAME Delete    COMMAND Delete)
+add_test(NAME StableSet COMMAND StableSet)
+add_test(NAME Map       COMMAND Map)

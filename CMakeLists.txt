@@ -30,10 +30,6 @@ if(BUILD_TESTING AND PTRIE_BuildTests)
 	add_subdirectory(benchmark)
 
 	#testing
-	add_subdirectory(test)
 	enable_testing()
-	add_test(NAME Set       COMMAND Set)
-	add_test(NAME Delete    COMMAND Delete)
-	add_test(NAME StableSet COMMAND StableSet)
-	add_test(NAME Map       COMMAND Map)
+	add_subdirectory(test)
 endif()
