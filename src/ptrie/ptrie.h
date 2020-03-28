@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <limits>
 #include <stack>
-#include <string.h>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <tuple>
@@ -824,7 +824,7 @@ namespace ptrie {
                     uchar* ptr = *((uchar**) (&data[offset]));
                     if constexpr(byte_iterator<KEY>::continious())
                     {
-                        int cmp = memcmp(ptr, &byte_iterator<KEY>::const_access(target, byte), encsize);
+                        int cmp = std::memcmp(ptr, &byte_iterator<KEY>::const_access(target, byte), encsize);
                         if (cmp > 0) {
                             found = false;
                             break;
@@ -1021,7 +1021,7 @@ namespace ptrie {
                     if (next_length >= HEAPBOUND) {
                         uchar* tmp = *((uchar**)&(node.data()[nbcnt]));
                         assert(tmp == dest);
-                        assert(memcmp(tmp, &(src[to_cut]), next_length) == 0);
+                        assert(std::memcmp(tmp, &(src[to_cut]), next_length) == 0);
                     }
 #endif
                     delete[] src;
