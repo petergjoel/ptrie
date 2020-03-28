@@ -168,8 +168,6 @@ namespace ptrie {
         bool operator==(const __iterator& other) const {
             if(_node->_type != 255)
                 return _node == other._node && _index == other._index; 
-            auto* fwd = static_cast<const typename P::fwdnode_t*>(_node);
-            assert(fwd->_parent == nullptr);
             if(_index <= 0 && other._index <= 0) return true; // begin;
             else if(_index >= 255 && other._index >= 255) return true; // end
             return false;
@@ -325,7 +323,7 @@ namespace ptrie {
             constexpr uchar* data() const { return _data->data(_count); }
             constexpr uint16_t& first(size_t index) const { return _data->first(_count, index); }
             constexpr uint16_t* first() const { return &_data->first(_count, 0); }
-            constexpr auto entries() const { return _data->entries(_count); }
+            constexpr I* entries() const { return _data->entries(_count); }
             constexpr void clone(const node_t& other, entrylist_t* entries, const entrylist_t* other_entries, uint16_t esize, size_t depth);
         };
 
@@ -996,7 +994,7 @@ namespace ptrie {
                 uchar* dest = &(node.data()[nbcnt]);
                 if (next_length >= HEAPBOUND) {
                     uchar* data = new uchar[next_length];
-                    memcpy(dest, &data, sizeof (uchar*));
+                    *reinterpret_cast<uchar**>(dest) = data;
                     dest = data;
                 }
 
@@ -1016,9 +1014,7 @@ namespace ptrie {
                     }
                 }
 
-                memcpy(dest,
-                        &(src[to_cut]),
-                        next_length);
+                std::copy(src + to_cut, src + to_cut + next_length, dest);
 
                 if (lengths[i] >= HEAPBOUND) {
 #ifndef NDEBUG
@@ -1048,7 +1044,10 @@ namespace ptrie {
             if(to_cut != 0)
             {
                 if constexpr (HAS_ENTRIES)
-                    memcpy(node->_data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
+                {
+                    auto* e = bucket->entries(bucketsize);
+                    std::copy(e, e + bucketsize, node->_data->entries(bucketsize));
+                }
                 delete[] (uchar*)bucket;
                 lown._data = nullptr;
             } else node->_data = bucket;
@@ -1062,7 +1061,10 @@ namespace ptrie {
             if(to_cut != 0)
             {
                 if constexpr (HAS_ENTRIES)
-                    memcpy(lown._data->entries(bucketsize), bucket->entries(bucketsize), bucketsize * sizeof (I));
+                {
+                    auto* e = bucket->entries(bucketsize);
+                    std::copy(e, e+ bucketsize, lown._data->entries(bucketsize));
+                }
                 delete[] (uchar*)bucket;
                 node->_data = lown._data;
             } else node->_data = bucket;
@@ -1242,12 +1244,22 @@ namespace ptrie {
                     bucket_t::overhead(node->_count)];
 
             // copy firsts
-            memcpy(&node->_data->first(node->_count), &(old->first(bucketsize)), sizeof (uint16_t) * node->_count);
-            memcpy(&h_node->_data->first(h_node->_count), &(old->first(bucketsize, node->_count)), sizeof (uint16_t) * h_node->_count);
+            {
+                uint16_t* src = &(old->first(bucketsize));
+                uint16_t* mid = src + node->_count;
+                uint16_t* end = mid + h_node->_count;
+                std::copy(src, mid, &node->_data->first(node->_count));
+                std::copy(mid, end, &h_node->_data->first(h_node->_count));
+            }
 
             // copy data
-            memcpy(node->data(), old->data(bucketsize), node->_totsize);
-            memcpy(h_node->data(), &(old->data(bucketsize)[node->_totsize]), h_node->_totsize);
+            {
+                uchar* src = old->data(bucketsize);
+                uchar* mid = src + node->_totsize;
+                uchar* end = mid + h_node->_totsize;
+                std::copy(src, mid, node->data());
+                std::copy(mid, end, h_node->data());
+            }
 
             if constexpr (HAS_ENTRIES) {
                 I* ents = old->entries(bucketsize);
@@ -1377,9 +1389,14 @@ namespace ptrie {
                 bucket_t::overhead(nbucketcount)];
 
         // copy over old "firsts"
-        memcpy(&nbucket->first(nbucketcount), &(node->_data->first(node->_count)), b_index * sizeof (uint16_t));
-        memcpy(&(nbucket->first(nbucketcount, b_index + 1)), &(node->_data->first(node->_count, b_index)),
-                (node->_count - b_index) * sizeof (uint16_t));
+
+        {
+            auto* src = &(node->_data->first(node->_count));
+            auto* mid = src + b_index;
+            auto* end = mid + (node->_count - b_index);
+            std::copy(src, mid, &nbucket->first(nbucketcount));
+            std::copy(mid, end, &nbucket->first(nbucketcount, b_index + 1));
+        }
 
         uchar* f = (uchar*) & nbucket->first(nbucketcount, b_index);
         if (byte >= 2) {
@@ -1401,9 +1418,13 @@ namespace ptrie {
         size_t entry = 0;
         if constexpr (HAS_ENTRIES) {
             // copy over entries
-            memcpy(nbucket->entries(nbucketcount), node->_data->entries(node->_count), b_index * sizeof (I));
-            memcpy(&(nbucket->entries(nbucketcount)[b_index + 1]), &(node->_data->entries(node->_count)[b_index]),
-                    (node->_count - b_index) * sizeof (I));
+            {
+                auto* src =  node->_data->entries(node->_count);
+                auto* mid = src + b_index;
+                auto* end = mid + (node->_count - b_index);
+                std::copy(src, mid, nbucket->entries(nbucketcount));
+                std::copy(mid, end, nbucket->entries(nbucketcount) + b_index + 1);
+            }
 
             entry = nbucket->entries(nbucketcount)[b_index] = _entries->next(0);
             entry_t& ent = _entries->operator[](entry);
@@ -1430,17 +1451,22 @@ namespace ptrie {
             }
         }
         // copy over old data
-        memcpy(nbucket->data(nbucketcount),
-                node->data(), tmpsize);
-
-        memcpy(&(nbucket->data(nbucketcount)[tmpsize + nitemsize]),
-                &(node->data()[tmpsize]), (node->_totsize - tmpsize));
+        {
+            auto* src = node->data();
+            auto* mid = src + tmpsize;
+            auto* end = mid + (node->_totsize - tmpsize);
+            std::copy(src, mid, nbucket->data(nbucketcount));
+            std::copy(mid, end, nbucket->data(nbucketcount) + tmpsize + nitemsize);
+        }
 
         // copy over new data
         if (copyval) {
             if constexpr (byte_iterator<KEY>::continious())
-                memcpy(&(nbucket->data(nbucketcount)[tmpsize]),
-                        &byte_iterator<KEY>::const_access(data, byte), std::max(nenc_size, 0));
+            {
+                auto* src = &byte_iterator<KEY>::const_access(data, byte);
+                auto* end = src + std::max(nenc_size, 0);
+                std::copy(src, end, nbucket->data(nbucketcount) + tmpsize);
+            }
             else
             {
                 for(auto i = 0; i < nenc_size; ++i)
@@ -1453,14 +1479,16 @@ namespace ptrie {
 
             // copy data to heap
             if constexpr (byte_iterator<KEY>::continious())
-                memcpy(dest, &byte_iterator<KEY>::const_access(data, byte), std::max(nenc_size, 0));
+            {
+                auto* dp = &byte_iterator<KEY>::const_access(data, byte);
+                std::copy(dp, dp + std::max(nenc_size, 0), dest);
+            }
             else
                 for(auto i = 0; i < nenc_size; ++i)
                     dest[i] = byte_iterator<KEY>::const_access(data, byte+i);
 
             // copy pointer in
-            memcpy(&(nbucket->data(nbucketcount)[tmpsize]),
-                    &dest, sizeof (uchar*));
+            *reinterpret_cast<uchar**>(nbucket->data(nbucketcount) + tmpsize) = dest;
         }
 
         // if needed, split the node 
@@ -1523,9 +1551,8 @@ namespace ptrie {
                 }
                 if(size < HEAPBOUND && size > 1)
                 {
-                    memcpy(&(nbucket->data(node->_count)[dcnt]),
-                               &(node->data()[ocnt]),
-                                       size - 1);
+                    std::copy(node->data() + ocnt, node->data() + ocnt + size - 1, 
+                            nbucket->data(node->_count) + dcnt);
                     ocnt += size - 1;
                     dcnt += size - 1;
                 }
@@ -1533,21 +1560,21 @@ namespace ptrie {
                 {
                     uchar* src = nullptr;
                     uchar* dest = new uchar[size];
-                    memcpy(&(nbucket->data(node->_count)[dcnt]), &dest, sizeof(size_t));
+                    *reinterpret_cast<uchar**>(nbucket->data(node->_count) + dcnt) = dest;
                     ++dest;
                     dcnt += sizeof(size_t);
                     if(size == HEAPBOUND)
                     {
-                        src = &(node->data()[ocnt]);
-                        memcpy(dest, src, size - 1);
+                        src = node->data() + ocnt;
+                        std::copy(src, src + (size - 1), dest);
                         ocnt += size - 1;
                     }
                     else
                     {
                         assert(size > HEAPBOUND);
                         // allready on heap, but we need to expand it
-                        src = *(uchar**)&(node->data()[ocnt]);
-                        memcpy(dest, src, size - 1);
+                        src = *reinterpret_cast<uchar**>(node->data() + ocnt);
+                        std::copy(src, src + (size-1), dest);
                         ocnt += sizeof(size_t);
                     }
                     --dest;
@@ -1648,33 +1675,25 @@ namespace ptrie {
             std::swap(first, second);
         }
 
-        memcpy(&nbucket->first(nbucketcount),
-               &(first->_data->first(first->_count)),
-               first->_count * sizeof(uint16_t));
-
-        memcpy(&(nbucket->first(nbucketcount, first->_count)),
-               &(second->_data->first(second->_count)),
-               second->_count * sizeof(uint16_t));
+        std::copy(first->first(), first->first() + first->_count,
+            &nbucket->first(nbucketcount));
+        std::copy(second->first(), second->first() + second->_count,
+            &nbucket->first(nbucketcount, first->_count));
 
         if constexpr (HAS_ENTRIES) {
             // copy over entries
-            memcpy(nbucket->entries(nbucketcount),
-                   first->_data->entries(first->_count),
-                   first->_count * sizeof(I));
-            memcpy(&(nbucket->entries(nbucketcount)[first->_count]),
-                   second->_data->entries(second->_count),
-                   second->_count * sizeof(I));
-
+            std::copy(first->entries(), first->entries() + first->_count, 
+                    nbucket->entries(nbucketcount));
+            std::copy(second->entries(), second->entries() + second->_count, 
+                    nbucket->entries(nbucketcount) + first->_count);
         }
 
         // copy over old data
         if (nbucketsize > 0) {
-            memcpy(nbucket->data(nbucketcount),
-                   first->data(), first->_totsize);
-
-            memcpy(&(nbucket->data(nbucketcount)[first->_totsize]),
-                   second->data(), second->_totsize);
-
+            std::copy(first->data(), first->data() + first->_totsize, 
+                    nbucket->data(nbucketcount));
+            std::copy(second->data(), second->data() + second->_totsize, 
+                    nbucket->data(nbucketcount) + first->_totsize);
         }
         delete[] (uchar*)node->_data;
         node->_data = nbucket;
@@ -1993,22 +2012,25 @@ namespace ptrie {
                                                     bucket_t::overhead(nbucketcount)];
 
             // copy over old "firsts", [0,bindex) to [0,bindex) then (bindex,node->_count) to [bindex, nbucketcount)
-            memcpy(&nbucket->first(nbucketcount),
-                   &(node->_data->first(node->_count)),
-                   bindex * sizeof(uint16_t));
-
-            memcpy(&(nbucket->first(nbucketcount, bindex)),
-                       &(node->_data->first(node->_count, bindex + 1)),
-                       (nbucketcount - bindex) * sizeof(uint16_t));
+            {
+                auto* src = node->first();
+                auto* mid = src + bindex;
+                auto* end = src + node->_count; 
+                auto* dest = &nbucket->first(nbucketcount); 
+                std::copy(node->first(), mid, dest);
+                std::copy(mid + 1, end, dest + bindex);
+            }
 
             if constexpr (HAS_ENTRIES) {
                 // copy over entries
-                memcpy(nbucket->entries(nbucketcount),
-                       node->_data->entries(node->_count),
-                       bindex * sizeof(I));
-                memcpy(&(nbucket->entries(nbucketcount)[bindex]),
-                       &(node->_data->entries(node->_count)[bindex + 1]),
-                       (nbucketcount - bindex) * sizeof(I));
+                {
+                    auto* src = node->entries();
+                    auto* mid = src + bindex;
+                    auto* end = src + node->_count;
+                    auto* dest = node->_data->entries(node->_count);
+                    std::copy(src, mid, dest);
+                    std::copy(mid + 1, end, dest + bindex);
+                }
 
                 // copy back entries here in _entries!
                 // TODO fixme!
@@ -2016,13 +2038,13 @@ namespace ptrie {
 
             // copy over old data
             if (nbucketsize > 0) {
-                memcpy(nbucket->data(nbucketcount),
-                       node->data(), before);
+                auto* begin = node->data();
+                auto* mid = begin + before;
+                auto* end = node->data() + node->_totsize;
+                auto* dest = nbucket->data(nbucketcount);
+                std::copy(begin, mid, dest);
+                std::copy(mid + size, end, dest + before);
                 assert(nbucketsize >= before);
-                memcpy(&(nbucket->data(nbucketcount)[before]),
-                       &(node->data()[before + size]),
-                       (nbucketsize - before));
-
             }
             delete[] (uchar*)node->_data;
             node->_data = nbucket;
@@ -2157,7 +2179,7 @@ namespace ptrie {
             }
 
             if constexpr (byte_iterator<KEY>::continious())
-                memcpy(&byte_iterator<KEY>::access(dest, ps), src, (size - ps));
+                std::copy(src, src + (size - ps), &byte_iterator<KEY>::access(dest, ps));
             else
                 for(size_t i = 0; i < (size - ps); ++i)
                     byte_iterator<KEY>::access(dest, ps + i) = src[i];
