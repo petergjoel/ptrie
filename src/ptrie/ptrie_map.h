@@ -46,6 +46,7 @@ namespace ptrie {
         using pt::erase;
         using pt::unpack;
         using pt::insert;
+        using pt::size;
         
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
