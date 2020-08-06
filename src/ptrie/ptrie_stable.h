@@ -156,6 +156,8 @@ namespace ptrie {
             using pt::exists;
             using pt::erase;
             using pt::unpack;
+            using pt::size;
+            
             iterator begin() const { return ++iterator(&this->_root, 0); }
             iterator end()   const { return iterator(&this->_root, 256); }
     };
