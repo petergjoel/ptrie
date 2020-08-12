@@ -209,7 +209,7 @@ public:
             tmp->_index[id/C] = bucket;
         }
         
-        inline bucket_t* indexToBucket(size_t id)
+        inline bucket_t* indexToBucket(size_t id) const
         {
             index_t* tmp = _index;
             while(id >= C*C)
