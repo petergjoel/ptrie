@@ -695,8 +695,8 @@ namespace ptrie {
         if constexpr (HAS_ENTRIES) {
             for (size_t i = 0; i < _count; ++i) {
                 auto eid = entries->next(0);
-                (*entries)[i] = eid;
-                (*entries)[eid] = (*other_entries)[other->entries()[i]];
+                this->entries()[i] = eid;
+                (*entries)[eid] = (*other_entries)[other.entries()[i]];
             }
         }
     }
