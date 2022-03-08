@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
             ids.push_back(res.second);
             auto size = cont.unpack(res.second, &scratchpad);
 
-            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(size_t{1}, size);
             BOOST_CHECK_EQUAL(test, scratchpad);
         }
 
@@ -193,11 +193,11 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
             BOOST_CHECK(cont[test] == i);
             auto size = cont.unpack(ids[i], &scratchpad);
 
-            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(size_t{1}, size);
             BOOST_CHECK_EQUAL(test, scratchpad);
             
             auto key = cont.unpack(ids[i]);
-            BOOST_CHECK_EQUAL(1, key.size());
+            BOOST_CHECK_EQUAL(size_t{1}, key.size());
             BOOST_CHECK(key.back() == test);
         }
     }
@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
 BOOST_AUTO_TEST_CASE(SimpleIterator)
 {
     std::cerr << "SimpleIterator" << std::endl;
-    constexpr auto x = 10000;
+    const size_t x = 10000;
     ptrie::map<size_t, size_t> set;
     for(size_t i = 0; i < x; ++i)
     {

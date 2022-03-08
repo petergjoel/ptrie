@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
 {
     std::cerr << "SimpleRIterator" << std::endl;
     set_stable<size_t> set;
-    constexpr auto x = 10000;
+    constexpr size_t x = 10000;
     for(size_t i = 0; i < x; ++i)
     {
         set.insert(i);
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
 BOOST_AUTO_TEST_CASE(SimpleIterator)
 {
     std::cerr << "SimpleIterator" << std::endl;
-    constexpr auto x = 10000;
+    const size_t x = 10000;
     set_stable<size_t> set;
     for(size_t i = 0; i < x; ++i)
     {
@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
             ids.push_back(res.second);
             auto size = set.unpack(res.second, &scratchpad);
 
-            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(size_t{1}, size);
             BOOST_CHECK_EQUAL(test, scratchpad);
         }
 
@@ -217,11 +217,11 @@ BOOST_AUTO_TEST_CASE(ComplexType1)
             type_t test({(char)rand(), (int)rand(), (char)rand(), (int)rand()});
             auto size = set.unpack(ids[i], &scratchpad);
 
-            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(size_t{1}, size);
             BOOST_CHECK_EQUAL(test, scratchpad);
             
             auto key = set.unpack(ids[i]);
-            BOOST_CHECK_EQUAL(1, key.size());
+            BOOST_CHECK_EQUAL(size_t{1}, key.size());
             BOOST_CHECK(key.back() == test);
         }
     }
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE(ComplexType2)
             ids.push_back(res.second);
             auto size = set.unpack(res.second, &scratchpad);
 
-            BOOST_REQUIRE_EQUAL(1, size);
+            BOOST_REQUIRE_EQUAL(size_t{1}, size);
             BOOST_REQUIRE_EQUAL(test, scratchpad);
         }
 
@@ -253,11 +253,11 @@ BOOST_AUTO_TEST_CASE(ComplexType2)
             type_t test({(char)rand(), (int)rand(), (char)rand(), (int)rand()});
             auto size = set.unpack(ids[i], &scratchpad);
 
-            BOOST_CHECK_EQUAL(1, size);
+            BOOST_CHECK_EQUAL(size_t{1}, size);
             BOOST_CHECK_EQUAL(test, scratchpad);
             
             auto key = set.unpack(ids[i]);
-            BOOST_CHECK_EQUAL(1, key.size());
+            BOOST_CHECK_EQUAL(size_t{1}, key.size());
             BOOST_CHECK(key.back() == test);
         }
     }
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE(ComplexType1Vector)
             ids.push_back(res.second);
             auto size = set.unpack(res.second, scratchpad.data());
 
-            BOOST_REQUIRE_EQUAL(10, size);
+            BOOST_REQUIRE_EQUAL(size_t{10}, size);
             BOOST_REQUIRE(std::equal(test.begin(), test.end(), scratchpad.begin()));
         }
 
@@ -292,11 +292,11 @@ BOOST_AUTO_TEST_CASE(ComplexType1Vector)
                 test[i] = type_t{(char)rand(), (int)rand(), (char)rand(), (int)rand()};
             auto size = set.unpack(ids[i], scratchpad.data());
 
-            BOOST_CHECK_EQUAL(10, size);
+            BOOST_CHECK_EQUAL(size_t{10}, size);
             BOOST_CHECK(std::equal(test.begin(), test.end(), scratchpad.begin()));
             
             auto key = set.unpack(ids[i]);
-            BOOST_CHECK_EQUAL(10, key.size());
+            BOOST_CHECK_EQUAL(size_t{10}, key.size());
             BOOST_CHECK(std::equal(test.begin(), test.end(), key.begin()));
         }
     }
@@ -319,7 +319,7 @@ BOOST_AUTO_TEST_CASE(ComplexType2Vector)
             ids.push_back(res.second);
             auto size = set.unpack(res.second, scratchpad.data());
 
-            BOOST_REQUIRE_EQUAL(10, size);
+            BOOST_REQUIRE_EQUAL(size_t{10}, size);
             BOOST_REQUIRE(std::equal(test.begin(), test.end(), scratchpad.begin()));
         }
 
@@ -331,11 +331,11 @@ BOOST_AUTO_TEST_CASE(ComplexType2Vector)
                 test[i] = type_t{(char)rand(), (int)rand(), (char)rand(), (int)rand()};
             auto size = set.unpack(ids[i], scratchpad.data());
 
-            BOOST_CHECK_EQUAL(10, size);
+            BOOST_CHECK_EQUAL(size_t{10}, size);
             BOOST_CHECK(std::equal(test.begin(), test.end(), scratchpad.begin()));
             
             auto key = set.unpack(ids[i]);
-            BOOST_CHECK_EQUAL(10, key.size());
+            BOOST_CHECK_EQUAL(size_t{10}, key.size());
             BOOST_CHECK(std::equal(test.begin(), test.end(), key.begin()));
         }
     }
