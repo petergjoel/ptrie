@@ -3,7 +3,7 @@
 find_package (Boost COMPONENTS unit_test_framework REQUIRED)
 include_directories (${TEST_SOURCE_DIR}/src
                      ${Boost_INCLUDE_DIRS}
-                     ${PTrie_SOURCE_DIR}
+                     "${ptrie_SOURCE_DIR}/src"
                      )
 add_definitions (-DBOOST_TEST_DYN_LINK)
 
