@@ -28,14 +28,23 @@ jobs:
           cd build
           CC=clang CXX=clang++ cmake ../ -DCMAKE_BUILD_TYPE=Prebuild -DPTRIE_BuildTests=ON -DBUILD_TESTING=ON -DPTRIE_GetDependencies=ON  ..
           make
-      - name: Build
+      - name: Build Debug
         run: |
           mkdir -p build
           cd build
           CC=clang CXX=clang++ cmake ../ -DCMAKE_BUILD_TYPE=Debug -DPTRIE_BuildTests=ON -DBUILD_TESTING=ON  ..
           make
-      - name: Test
+      - name: Test Debug
         run: |
           cd build
           make test
-
+      - name: Build Release
+        run: |
+          mkdir -p build
+          cd build
+          CC=clang CXX=clang++ cmake ../ -DCMAKE_BUILD_TYPE=Release -DPTRIE_BuildTests=ON -DBUILD_TESTING=ON  ..
+          make
+      - name: Test Release
+        run: |
+          cd build
+          make test
