@@ -441,14 +441,14 @@ namespace ptrie {
     class set : private __ptrie<KEY,HEAPBOUND,SPLITBOUND,BSIZE,ALLOCSIZE,void,size_t,false> {
         using pt = __ptrie<KEY,HEAPBOUND,SPLITBOUND,BSIZE,ALLOCSIZE,void,size_t,false>;
     public:
-        using pt::__ptrie;
+        using typename pt::__ptrie;
         using pt::insert;
         using pt::exists;
         using pt::erase;
         
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
-        using pt::key_t; 
+        using typename pt::key_t; 
 
         static constexpr auto bsize = pt::bsize;
         static constexpr auto bdiv = pt::bdiv;
@@ -694,9 +694,9 @@ namespace ptrie {
         }
         if constexpr (HAS_ENTRIES) {
             for (size_t i = 0; i < _count; ++i) {
-                auto eid = entries.next(0);
-                entries[i] = eid;
-                entries[eid] = other_entries[other->entries()[i]];
+                auto eid = entries->next(0);
+                (*entries)[i] = eid;
+                (*entries)[eid] = (*other_entries)[other->entries()[i]];
             }
         }
     }
@@ -2168,7 +2168,7 @@ namespace ptrie {
     }
     
     template<typename N, typename KEY, size_t BDIV, size_t BSIZE, size_t HEAPBOUND>
-    static void __write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size)
+    void __write_data(KEY* dest, const N* node, std::stack<uchar>& path, size_t bindex, size_t offset, size_t ps, uint16_t size)
     {
         if (size > ps) {
             uchar* src;
