@@ -7,6 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(PTRIE_BuildTests "Build the unit tests when BUILD_TESTING is enabled." ON)
+option(PTRIE_BuildBenchmark "Build the simple benchmark suite" OFF)
 option(PTRIE_AddressSanitizer "Enables address sanitization during compilation." OFF)
 option(PTRIE_GetDependencies "Fetch external dependencies from web." OFF)
 
@@ -74,9 +75,11 @@ endif (PTRIE_GetDependencies)
 
 if(NOT CMAKE_BUILD_TYPE MATCHES Prebuild)
     add_subdirectory(src)
+    if(PTRIE_BuildBenchmark)
+        add_subdirectory(benchmark)
+    endif()
     if(BUILD_TESTING AND PTRIE_BuildTests)
         #benchmark
-        add_subdirectory(benchmark)
 
         #testing
         enable_testing()
