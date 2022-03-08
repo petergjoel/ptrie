@@ -41,7 +41,7 @@ namespace ptrie {
         using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
         using entrylist_t = typename pt::entrylist_t;
     public:
-        using pt::__set_stable;
+        using typename pt::__set_stable;
         using pt::exists;
         using pt::erase;
         using pt::unpack;
@@ -50,7 +50,7 @@ namespace ptrie {
         
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
-        using pt::key_t; 
+        using typename pt::key_t; 
         static constexpr auto bsize = pt::bsize;
         static constexpr auto bdiv = pt::bdiv;
         static constexpr auto heapbound = HEAPBOUND;
