@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 include(CMakePackageConfigHelpers)
 project(PTrie C CXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_library(ptrie INTERFACE ${HEADER_FILES})
