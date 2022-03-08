@@ -56,6 +56,7 @@ namespace ptrie {
         static constexpr auto heapbound = HEAPBOUND;
         
         T& get_data(I index);
+        const T& get_data(I index) const;
         T& operator[](KEY key)
         {
             return get_data(pt::insert(key).second);
@@ -110,6 +111,19 @@ namespace ptrie {
     T&
     map<KEY, T, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
+        return ent._data;
+    }
+    template<
+            typename KEY,
+            typename T,
+            uint16_t HEAPBOUND,
+            uint16_t SPLITBOUND,
+            uint8_t BSIZE,
+            size_t ALLOCSIZE,
+            typename I>
+    const T&
+    map<KEY, T, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, I>::get_data(I index) const {
+        const typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent._data;
     }
 }
