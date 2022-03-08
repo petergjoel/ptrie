@@ -41,20 +41,22 @@ namespace ptrie {
         using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I>;
         using entrylist_t = typename pt::entrylist_t;
     public:
-        using pt::__set_stable;
+        using typename pt::__set_stable;
         using pt::exists;
         using pt::erase;
         using pt::unpack;
         using pt::insert;
+        using pt::size;
         
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
-        using pt::key_t; 
+        using typename pt::key_t; 
         static constexpr auto bsize = pt::bsize;
         static constexpr auto bdiv = pt::bdiv;
         static constexpr auto heapbound = HEAPBOUND;
         
         T& get_data(I index);
+        const T& get_data(I index) const;
         T& operator[](KEY key)
         {
             return get_data(pt::insert(key).second);
@@ -109,6 +111,19 @@ namespace ptrie {
     T&
     map<KEY, T, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, I>::get_data(I index) {
         typename pt::entry_t& ent = this->_entries->operator[](index);
+        return ent._data;
+    }
+    template<
+            typename KEY,
+            typename T,
+            uint16_t HEAPBOUND,
+            uint16_t SPLITBOUND,
+            uint8_t BSIZE,
+            size_t ALLOCSIZE,
+            typename I>
+    const T&
+    map<KEY, T, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, I>::get_data(I index) const {
+        const typename pt::entry_t& ent = this->_entries->operator[](index);
         return ent._data;
     }
 }

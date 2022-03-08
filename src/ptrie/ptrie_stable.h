@@ -45,14 +45,14 @@ namespace ptrie {
         using pt = __ptrie<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, T, I, true>;
         static_assert(std::is_integral<I>::value, "I (index-type) must be an integral");
     public:
-        using pt::__ptrie;
+        using typename pt::__ptrie;
         using pt::insert;
         using pt::exists;
         using pt::erase;
 
         using node_t = typename pt::node_t;
         using fwdnode_t = typename pt::fwdnode_t;
-        using pt::key_t; 
+        using typename pt::key_t; 
 
         static constexpr auto bsize = pt::bsize;
         static constexpr auto bdiv = pt::bdiv;
@@ -151,11 +151,13 @@ namespace ptrie {
         using pt = __set_stable<KEY, HEAPBOUND, SPLITBOUND, BSIZE, ALLOCSIZE, void, I>;
         using iterator = typename pt::siterator;
         public:
-            using pt::__ptrie;
+            using typename pt::__ptrie;
             using pt::insert;
             using pt::exists;
             using pt::erase;
             using pt::unpack;
+            using pt::size;
+            
             iterator begin() const { return ++iterator(&this->_root, 0); }
             iterator end()   const { return iterator(&this->_root, 256); }
     };
