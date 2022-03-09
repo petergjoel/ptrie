@@ -36,7 +36,8 @@ struct my_struct {
     size_t b;
     my_struct() = default;
     my_struct(size_t a, size_t b) : a(a), b(b) {};
-    friend auto operator<=>(const my_struct&, const my_struct&) = default;
+    friend bool operator==(const my_struct& lhs, const my_struct& rhs) { return lhs.a == rhs.a && lhs.b == rhs.b; };
+    friend bool operator!=(const my_struct& lhs, const my_struct& rhs) { return !(lhs==rhs); };
     friend std::ostream& operator<<(std::ostream& s, const my_struct& m) {
         return s << "{a: " << m.a << ", b: " << m.b << "}";
     }
