@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(EmptyTest)
 {
     set<> set;
     try_insert(set,
-               [](size_t i)
+               [](size_t)
                {
                    auto data = std::make_unique<unsigned char[]>(0);
                    return std::make_pair(std::move(data), 0);
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(SimpleIterator)
     {
         ++cnt;
     }
-    BOOST_CHECK_EQUAL(cnt, 100000);
+    BOOST_CHECK_EQUAL(cnt, size_t{100000});
 }
 
 BOOST_AUTO_TEST_CASE(SimpleRIterator)
@@ -191,6 +191,6 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
     {
         ++cnt;
     }
-    BOOST_CHECK_EQUAL(cnt, 100000-1);
+    BOOST_CHECK_EQUAL(cnt, size_t{100000-1});
 }
  
