@@ -217,7 +217,6 @@ BOOST_AUTO_TEST_CASE(SimpleIterator)
     for(auto b = set.begin(); b != set.end(); ++b)
     {
         BOOST_REQUIRE(b.index() == *b);
-        BOOST_REQUIRE(0 <= b.index());
         BOOST_REQUIRE(b.index() <= x);
         BOOST_REQUIRE(b.index() == b.unpack().back());
         ++cnt;

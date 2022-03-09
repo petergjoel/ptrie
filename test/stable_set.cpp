@@ -38,7 +38,6 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
     for(auto b = --set.end(); b != set.begin(); --b)
     {
         ++cnt;
-        BOOST_REQUIRE(0 <= b.index());
         BOOST_REQUIRE(b.index() <= x);
         BOOST_REQUIRE(b.index() == b.unpack().back());
     }
@@ -59,7 +58,6 @@ BOOST_AUTO_TEST_CASE(SimpleIterator)
     for(auto b = set.begin(); b != set.end(); ++b)
     {
         ++cnt;
-        BOOST_REQUIRE(0 <= b.index());
         BOOST_REQUIRE(b.index() <= x);
         BOOST_REQUIRE(b.index() == b.unpack().back());
     }

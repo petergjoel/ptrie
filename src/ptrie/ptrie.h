@@ -308,7 +308,7 @@ namespace ptrie {
                 return ((uchar*) (&_data)) + overhead(count);
             }
 
-            constexpr uint16_t& first(uint16_t count = 0, uint16_t index = 0) {
+            constexpr uint16_t& first(uint16_t = 0, uint16_t index = 0) {
                 return ((uint16_t*) &_data)[index];
             }
 
@@ -1706,7 +1706,7 @@ namespace ptrie {
 
     template<PTRIETPL>
     void
-    __ptrie<PTRIETLPA>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY* data, size_t byte)
+    __ptrie<PTRIETLPA>::readd_sizes(node_t* node, fwdnode_t* parent, int on_heap, const KEY*, size_t byte)
     {
         assert(node);
         assert(byte > 0);
