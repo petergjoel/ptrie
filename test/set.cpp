@@ -193,4 +193,15 @@ BOOST_AUTO_TEST_CASE(SimpleRIterator)
     }
     BOOST_CHECK_EQUAL(cnt, size_t{100000-1});
 }
- 
+
+
+BOOST_AUTO_TEST_CASE(Dealloc)
+{
+    set<> set;
+    for(size_t i = 1; i < 10000; ++i)
+    {
+        ptrie::uchar * tmp = new ptrie::uchar[i];
+        std::fill(tmp, tmp + i, std::numeric_limits<ptrie::uchar>::max());
+        set.insert(tmp, i);
+    }
+}

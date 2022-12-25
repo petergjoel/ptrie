@@ -487,7 +487,7 @@ namespace ptrie {
                         if(std::get<1>(next) / BDIV < 2)
                         {
                             // we add bits from the most significant to the least
-                            f |= (child->_path << ((16-BSIZE)-(BSIZE*std::get<1>(next))));
+                            f |= ((child->_path & FILTER) << ((16-BSIZE)-(BSIZE*std::get<1>(next))));
                         }
                         assert(child->_path == i);
                         stack.emplace((fwdnode_t*)child, std::get<1>(next) + 1, f);
@@ -516,30 +516,34 @@ namespace ptrie {
         {
             // nothing on heap
         } else if (bdepth >= 2) {
-
+            // If 'encsize - bdepth < HEAPBOUND' is true and 'bdepth >= 2' we hit the if above.
             // everything is allocated on heap
             auto ptr = (uchar **) data();
             for (size_t i = 0; i < _count; ++i) {
                 delete[] ptr[i];
             }
         } else {
+            // bdepth < 2
             assert(_data || _count == 0);
             size_t offset = 0;
             for (size_t i = 0; i < _count; ++i) {
-                auto lencsize = encsize;
-                auto f = first(i);
-                if(bdepth != 0)
-                {
-                   // only keep most sig. bits
-                   lencsize &= ~0xFF00;
-                   //extract most sig. bits and shift to least sig. bits
-                   lencsize |= (f & 0xFF00) >> 8;
+                uint16_t lencsize = first(i);
+                if (bdepth == 1) {
+                    lencsize = ((encsize & 0xFF00) | (lencsize >> 8));
+#ifndef NDEBUG
+                    uint16_t dummy = first(i);
+                    dummy >>= 8;
+                    char* tmp = (char*)&dummy;
+                    char* tmp2 = (char*)&encsize;
+                    tmp[1] = tmp2[1];
+                    assert(dummy == lencsize);
+#endif
                 }
-                if ((lencsize-bdepth) >= HEAPBOUND) {
+                if (lencsize > bdepth && (lencsize-bdepth) > HEAPBOUND) {
                     auto ptr = (uchar **) (&(data()[offset]));
                     delete[] *ptr;
                 }
-                offset += bytes(lencsize-bdepth);
+                offset += bytes(lencsize >= bdepth ? lencsize-bdepth : 0);
             }
         }
         delete[] reinterpret_cast<uchar *>(_data);
@@ -675,23 +679,19 @@ namespace ptrie {
         } else {
             size_t offset = 0;
             for (size_t i = 0; i < _count; ++i) {
-                auto lencsize = encsize;
-                auto f = first(i);
-                if (bdepth != 0) {
-                    // only keep most sig. bits
-                    lencsize &= ~0xFF00;
-                    //extract most sig. bits and shift to least sig. bits
-                    lencsize |= (f & 0xFF00) >> 8;
+                uint16_t lencsize = first(i);
+                if (bdepth == 1) {
+                    lencsize = ((encsize & 0xFF00) | (lencsize >> 8));
                 }
-                if ((lencsize - bdepth) >= HEAPBOUND) {
+                if (lencsize > bdepth && (lencsize - bdepth) >= HEAPBOUND) {
                     auto ptr = (uchar **) (&(data()[offset]));
                     auto optr = (uchar **) (&(other.data()[offset]));
                     ptr[0] = new uchar[lencsize];
-                    std::copy(optr[0], optr[0] + lencsize, ptr[0]);
+                    std::copy(optr[0], optr[0] + (lencsize - bdepth), ptr[0]);
                 } else {
-                    std::copy(other.data() + offset, other.data() + lencsize, data() + offset);
+                    std::copy(other.data() + offset, other.data() + (lencsize - bdepth), data() + offset);
                 }
-                offset += bytes(lencsize - bdepth);
+                offset += bytes(lencsize >= bdepth ? lencsize - bdepth : 0);
             }
         }
         if constexpr (HAS_ENTRIES) {
@@ -885,7 +885,7 @@ namespace ptrie {
 
 
     template<PTRIETPL>
-    void __ptrie<PTRIETLPA>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte) 
+    void __ptrie<PTRIETLPA>::split_fwd(node_t* node, fwdnode_t* jumppar, node_t* locked, int32_t bsize, size_t p_byte)
     {
         if(bsize == -1)
         {
@@ -1478,7 +1478,6 @@ namespace ptrie {
         } else {
             // alloc space
             uchar* dest = new uchar[std::max(nenc_size, 0)];
-
             // copy data to heap
             if constexpr (byte_iterator<KEY>::continious())
             {
