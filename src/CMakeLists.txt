@@ -6,6 +6,8 @@ include(GNUInstallDirs) # With GNUInstallDirs we use platform-independent macros
 
 add_library(ptrie INTERFACE ${HEADER_FILES})
 target_compile_features(ptrie INTERFACE cxx_std_20) # Require C++20 features.
+find_package (Boost 1.70 REQUIRED COMPONENTS headers)
+target_link_libraries(ptrie INTERFACE Boost::headers)
 target_include_directories(ptrie INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
